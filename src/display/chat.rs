@@ -1,19 +1,28 @@
 use std::collections::VecDeque;
 
 use tinybit::widgets::Text;
-use tinybit::{Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport};
+use tinybit::{Color, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport};
 
-fn message_to_widget(user: &str, message: &str, action: bool) -> Text {
-    let text = match action {
-        true => format!("* {} {}", user, message),
-        false => format!("{} > {}", user, message),
-    };
-    Text::new(&text, None, None)
+use super::lines;
+
+fn message_to_widget(user: &str, message: &str, action: bool, max_width: usize) -> (Text, Vec<Text>) {
+    // let text = match action {
+    //     true => format!("* {} {}", user, message),
+    //     false => format!("{} > {}", user, message),
+    // };
+
+    let offset = user.len();
+    let message_lines = lines(message, max_width - offset);
+
+    (
+        Text::new(user, Some(Color::Green), None),
+        message_lines.into_iter().map(|line| Text::new(line, None, None)).collect()
+    )
 }
 
 pub struct Chat {
     lines: VecDeque<(String, String, bool)>,
-    widgets: Vec<Text>,
+    widgets: Vec<(Text, Vec<Text>)>,
     viewport: Viewport,
     scroll_offset: isize,
 }
@@ -22,8 +31,9 @@ impl Chat {
     pub fn new(size: ScreenSize) -> Self {
         let mut lines = VecDeque::new();
 
+        let msg = "hello this is a longer name than expected and some more chars here and bluh bleh blah blop bop plop blarp lark lork flerp florp fiddlestick and boring tricks and I ran out of ideas".to_string();
         for i in 0..70 {
-            lines.push_back((format!("{}", i), "hello".into(), false));
+            lines.push_back((format!("User-{} : ", i), msg.clone(), false));
         }
 
         Self {
@@ -40,16 +50,29 @@ impl Chat {
         self.widgets.clear();
 
         // Build new widgets
-        let offset =
-            self.lines.len() - self.max_lines() - self.scroll_offset as usize;
+        let offset = self.lines.len() - self.max_lines() - self.scroll_offset as usize;
         for line in self.lines.iter().skip(offset) {
-            let widget = message_to_widget(&line.0, &line.1, line.2);
-            self.widgets.push(widget);
+            let widgets = message_to_widget(
+                &line.0, 
+                &line.1,
+                line.2, 
+                self.viewport.size.width as usize
+            );
+            self.widgets.push(widgets);
         }
 
         // Draw the widgets onto the viewport
-        for (y, widget) in self.widgets.iter().enumerate() {
-            self.viewport.draw_widget(widget, ScreenPos::new(0, y as u16));
+        let mut y = 0;
+        for (nick, msgs) in self.widgets.iter() {
+            let mut x = 0;
+            self.viewport.draw_widget(nick, ScreenPos::new(x, y as u16));
+            x = nick.0.len() as u16;
+
+            for widget in msgs {
+                self.viewport.draw_widget(widget, ScreenPos::new(x, y));
+                x = 0;
+                y += 1;
+            }
         }
     }
 
@@ -58,9 +81,9 @@ impl Chat {
             true => {
                 let max = self.lines.len() as isize - self.max_lines() as isize;
                 let amount = (max - self.scroll_offset).min(amount);
-                // if self.scroll_offset < max 
+                // if self.scroll_offset < max
                 self.scroll_offset += amount
-            },
+            }
             false => {
                 if self.scroll_offset - amount < 0 {
                     self.scroll_offset = 0;

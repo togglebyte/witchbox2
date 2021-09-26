@@ -8,6 +8,7 @@ mod input;
 mod views;
 
 use views::View;
+use input::lines;
 
 pub fn run(events: Events<crate::Event>) {
     let (width, height) =

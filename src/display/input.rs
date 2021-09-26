@@ -29,7 +29,7 @@ fn split_lines(mut line: &str, max_width: usize) -> Vec<&str> {
 
 /// Split the input into lines that will fit on screen,
 /// also break on newline chars.
-pub(super) fn lines(input: &str, max_width: usize) -> Vec<&str> {
+pub fn lines(input: &str, max_width: usize) -> Vec<&str> {
     let lines = input
         .split('\n')
         .map(|line| split_lines(line, max_width))
