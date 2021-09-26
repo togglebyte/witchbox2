@@ -7,19 +7,17 @@ mod chat;
 mod input;
 mod views;
 
-use views::View;
 use input::lines;
+use views::View;
 
 pub fn run(events: Events<crate::Event>) {
-    let (width, height) =
-        term_size().expect("Can't get the term size? Can't play the game!");
+    let (width, height) = term_size().expect("Can't get the term size? Can't play the game!");
 
     // Viewport
     let viewport_size = ScreenSize::new(width, height);
 
     // Renderer
-    let stdout_renderer =
-        StdoutTarget::new().expect("Failed to enter raw mode");
+    let stdout_renderer = StdoutTarget::new().expect("Failed to enter raw mode");
     let mut renderer = Renderer::new(stdout_renderer);
 
     let mut chat = chat::Chat::new(viewport_size);
@@ -29,46 +27,50 @@ pub fn run(events: Events<crate::Event>) {
 
     for event in events {
         match event {
-            Event::Tick => {
-                chat.rebuild_widgets();
-                chat.draw(&mut renderer);
-                // let _ = views.last_mut().map(|c| c.draw(&mut renderer));
-            }
+            Event::Tick => {}
             Event::Key(KeyEvent {
                 code: KeyCode::Esc | KeyCode::Char('q'),
                 ..
             }) => break,
-            Event::Key(KeyEvent { code: kc, .. }) => match kc {
-                KeyCode::Char('k') => {
-                    chat.scroll(true, 3);
-                    chat.rebuild_widgets();
-                },
-                KeyCode::Char('j') => {
-                    chat.scroll(false, 5);
-                    chat.rebuild_widgets();
+            Event::Key(KeyEvent { code: kc, .. }) => {
+                match kc {
+                    KeyCode::Char('k') => {
+                        chat.scroll(true, 1);
+                    }
+                    KeyCode::Char('j') => {
+                        chat.scroll(false, 1);
+                    }
+                    KeyCode::Char('x') => {
+                        chat.new_message(
+                            "fancy pants".into(),
+                            "Look I have a keyboard".into(),
+                            false,
+                        );
+                    }
+                    _ => {}
                 }
-                _ => {}
-            },
+                chat.rebuild_widgets();
+                chat.draw(&mut renderer);
+            }
             Event::Resize(w, h) => {
                 chat.resize(w, h);
                 channel_events.resize(w, h);
-                // for view in &mut views {
-                //     view.resize(w, h);
-                // }
                 renderer.clear();
+                chat.draw(&mut renderer);
             }
             Event::User(ev) => {
                 match ev {
                     crate::Event::Chat { nick, msg, action } => {
-                        chat.new_message(nick, msg, action)
+                        chat.new_message(nick, msg, action);
+                        chat.draw(&mut renderer);
                     }
-                    crate::Event::Twitch(twitch) => {
-                        channel_events.event(twitch)
-                    }
+                    crate::Event::Twitch(twitch) => channel_events.event(twitch),
                     crate::Event::Log(_msg) => {}
                     crate::Event::Quit => break,
                 }
-                // let _ = views.last_mut().map(|c| c.event(ev));
+
+                chat.rebuild_widgets();
+                chat.draw(&mut renderer);
             }
         }
     }
