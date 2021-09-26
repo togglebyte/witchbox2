@@ -50,6 +50,7 @@ pub struct Chat {
     widgets: Vec<Line>,
     viewport: Viewport,
     scroll_offset: isize,
+    unread: usize,
 }
 
 impl Chat {
@@ -67,10 +68,20 @@ impl Chat {
             widgets: Vec::new(),
             viewport: Viewport::new(ScreenPos::zero(), size),
             scroll_offset: 0,
+            unread: 0,
         }
     }
 
     pub fn rebuild_widgets(&mut self) {
+        // If the viewport is too small then bail
+        if self.viewport.size.width < 15 {
+
+            if self.viewport.size.width > 5 {
+                self.viewport.draw_widget(&Text::new(" - ??? - ", None, Some(Color::Red)), ScreenPos::new(0, self.max_lines() as u16 - 1));
+            }
+            return;
+        }
+
         // Clear all widgets and rebuild the widget this.
         // This is just me being lazy
         self.widgets.clear();
@@ -93,11 +104,11 @@ impl Chat {
         for widget in self.widgets.iter().skip(offset) {
             match widget {
                 Line::Start(timestamp, nick, msg) => {
-                    self.viewport.draw_widget(timestamp, ScreenPos::new(0, y as u16));
+                    self.viewport.draw_widget(timestamp, ScreenPos::new(0, y));
                     let mut offset = timestamp.0.len() as u16;
-                    self.viewport.draw_widget(nick, ScreenPos::new(offset, y as u16));
+                    self.viewport.draw_widget(nick, ScreenPos::new(offset, y));
                     offset += nick.0.len() as u16;
-                    self.viewport.draw_widget(msg, ScreenPos::new(offset, y as u16));
+                    self.viewport.draw_widget(msg, ScreenPos::new(offset, y));
                 }
                 Line::Cont(msg) => {
                     self.viewport.draw_widget(msg, ScreenPos::new(0, y as u16));
@@ -105,10 +116,19 @@ impl Chat {
             }
             y += 1;
         }
+
+        // If scroll offset isn't zero, show a bar at the bottom
+        if self.scroll_offset != 0 {
+            let width = self.viewport.size.width as usize;
+            let new_msg = format!("- New messages: {} -", self.unread);
+            let msg = format!("{1:^0$}", width, new_msg);
+            self.viewport.draw_widget(&Text::new(&msg, None, Some(Color::Red)), ScreenPos::new(0, self.max_lines() as u16 - 1));
+        }
     }
 
     pub fn reset_scroll(&mut self) {
         self.scroll_offset = 0;
+        self.unread = 0;
     }
 
     pub fn scroll(&mut self, up: bool, amount: isize) {
@@ -120,7 +140,7 @@ impl Chat {
             }
             false => {
                 if self.scroll_offset - amount < 0 {
-                    self.scroll_offset = 0;
+                    self.reset_scroll();
                 } else {
                     self.scroll_offset -= amount;
                 }
@@ -135,13 +155,20 @@ impl Chat {
     pub fn new_message(&mut self, nick: String, msg: String, action: bool) {
         let now = Local::now();
         self.messages.push_back((now, nick, msg, action));
+
+        // If the scroll is not at the bottom, 
+        // offset it by number of new lines so the history
+        // doesn't jump around
         let mut offest_offset = 0;
         while self.messages.len() > self.max_lines() {
             self.messages.pop_front();
             offest_offset += 1;
         }
 
-        self.scroll_offset -= offest_offset;
+        if self.scroll_offset != 0 {
+            self.scroll_offset += offest_offset;
+            self.unread += 1;
+        }
 
         self.rebuild_widgets();
     }
