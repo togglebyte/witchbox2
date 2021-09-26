@@ -122,7 +122,7 @@ impl Chat {
             let width = self.viewport.size.width as usize;
             let new_msg = format!("- New messages: {} -", self.unread);
             let msg = format!("{1:^0$}", width, new_msg);
-            self.viewport.draw_widget(&Text::new(&msg, None, Some(Color::Red)), ScreenPos::new(0, self.max_lines() as u16 - 1));
+            self.viewport.draw_widget(&Text::new(&msg, None, Some(Color::DarkGrey)), ScreenPos::new(0, self.max_lines() as u16 - 1));
         }
     }
 
