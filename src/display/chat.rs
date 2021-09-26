@@ -7,30 +7,33 @@ use tinybit::{Color, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport};
 use super::lines;
 
 enum Line {
-    Start(Text, Text),
+    Start(Text, Text, Text),
     Cont(Text),
 }
 
-fn message_to_widget(timestamp: DateTime<Local>, user: &str, message: &str, action: bool, max_width: usize) -> Vec<Line> {
-    let time = timestamp.format("%H:%M:%S");
+fn colour_from_nick(nick: &str) -> Color {
+    Color::Green
+}
 
-    let user = match action {
-        true => format!("{} ", user),
-        false => format!("{}: ", user),
+fn message_to_widget(timestamp: DateTime<Local>, nick: &str, message: &str, action: bool, max_width: usize) -> Vec<Line> {
+    let nick = match action {
+        true => format!("{} ", nick),
+        false => format!("{}> ", nick),
     };
 
     let (nick_fg, msg_fg) = match action {
         true => (Some(Color::Red), Some(Color::Red)),
-        false => (Some(Color::Green), None)
+        false => (Some(colour_from_nick(&nick)), None)
     };
 
-    let offset = user.len();
-    let mut message_lines = lines(message, max_width - offset);
+    let offset = nick.len();
+    let mut message_lines = lines(message, max_width);
 
     let first_line = message_lines.remove(0);
 
     let first_line = Line::Start(
-        Text::new(&user, nick_fg, None),
+        Text::new(&timestamp.format("%H:%M:%S : ").to_string(), None, None),
+        Text::new(&nick, nick_fg, None),
         Text::new(first_line, msg_fg, None)
     );
 
@@ -53,7 +56,8 @@ impl Chat {
     pub fn new(size: ScreenSize) -> Self {
         let mut messages = VecDeque::new();
 
-        let msg = "hello this is a longer name than expected and some more chars here and bluh bleh blah blop bop plop blarp lark lork flerp florp fiddlestick and boring tricks and I ran out of ideas".to_string();
+        let msg = "hello this is a longer name than expected and some more chars here and bluh bleh blah blop bop plop blarp lark lork flerp florp fiddlestick and boring bo bo tricks and I ran out of i".to_string();
+        // let msg = "hello this is a longer name than expected".to_string();
         for i in 0..70 {
             messages.push_back((Local::now(), format!("User-{}", i), msg.clone(), i % 5 == 0));
         }
@@ -88,9 +92,12 @@ impl Chat {
         let mut y = 0;
         for widget in self.widgets.iter().skip(offset) {
             match widget {
-                Line::Start(nick, msg) => {
-                    self.viewport.draw_widget(nick, ScreenPos::new(0, y as u16));
-                    self.viewport.draw_widget(msg, ScreenPos::new(nick.0.len() as u16, y as u16));
+                Line::Start(timestamp, nick, msg) => {
+                    self.viewport.draw_widget(timestamp, ScreenPos::new(0, y as u16));
+                    let mut offset = timestamp.0.len() as u16;
+                    self.viewport.draw_widget(nick, ScreenPos::new(offset, y as u16));
+                    offset += nick.0.len() as u16;
+                    self.viewport.draw_widget(msg, ScreenPos::new(offset, y as u16));
                 }
                 Line::Cont(msg) => {
                     self.viewport.draw_widget(msg, ScreenPos::new(0, y as u16));
