@@ -34,12 +34,9 @@ pub fn run(events: Events<crate::Event>) {
             }) => break,
             Event::Key(KeyEvent { code: kc, .. }) => {
                 match kc {
-                    KeyCode::Char('k') => {
-                        chat.scroll(true, 1);
-                    }
-                    KeyCode::Char('j') => {
-                        chat.scroll(false, 1);
-                    }
+                    KeyCode::Char('k') => chat.scroll(true, 1),
+                    KeyCode::Char('j') => chat.scroll(false, 1),
+                    KeyCode::Char('d') => chat.reset_scroll(),
                     KeyCode::Char('x') => {
                         chat.new_message(
                             "fancy pants".into(),

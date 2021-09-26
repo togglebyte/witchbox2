@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use chrono::prelude::*;
 use tinybit::widgets::Text;
 use tinybit::{Color, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport};
 
@@ -10,7 +11,9 @@ enum Line {
     Cont(Text),
 }
 
-fn message_to_widget(user: &str, message: &str, action: bool, max_width: usize) -> Vec<Line> {
+fn message_to_widget(timestamp: DateTime<Local>, user: &str, message: &str, action: bool, max_width: usize) -> Vec<Line> {
+    let time = timestamp.format("%H:%M:%S");
+
     let user = match action {
         true => format!("{} ", user),
         false => format!("{}: ", user),
@@ -40,7 +43,7 @@ fn message_to_widget(user: &str, message: &str, action: bool, max_width: usize) 
 }
 
 pub struct Chat {
-    messages: VecDeque<(String, String, bool)>,
+    messages: VecDeque<(DateTime<Local>, String, String, bool)>,
     widgets: Vec<Line>,
     viewport: Viewport,
     scroll_offset: isize,
@@ -52,7 +55,7 @@ impl Chat {
 
         let msg = "hello this is a longer name than expected and some more chars here and bluh bleh blah blop bop plop blarp lark lork flerp florp fiddlestick and boring tricks and I ran out of ideas".to_string();
         for i in 0..70 {
-            messages.push_back((format!("User-{}", i), msg.clone(), i % 5 == 0));
+            messages.push_back((Local::now(), format!("User-{}", i), msg.clone(), i % 5 == 0));
         }
 
         Self {
@@ -71,9 +74,10 @@ impl Chat {
         // Build new widgets
         for message in &self.messages {
             let mut widgets = message_to_widget(
-                &message.0, 
+                message.0, 
                 &message.1,
-                message.2, 
+                &message.2,
+                message.3, 
                 self.viewport.size.width as usize
             );
             self.widgets.append(&mut widgets);
@@ -93,14 +97,11 @@ impl Chat {
                 }
             }
             y += 1;
-            // x = nick.0.len() as u16;
-
-            // for widget in msgs {
-            //     self.viewport.draw_widget(widget, ScreenPos::new(x, y));
-            //     x = 0;
-            //     y += 1;
-            // }
         }
+    }
+
+    pub fn reset_scroll(&mut self) {
+        self.scroll_offset = 0;
     }
 
     pub fn scroll(&mut self, up: bool, amount: isize) {
@@ -125,10 +126,15 @@ impl Chat {
     }
 
     pub fn new_message(&mut self, nick: String, msg: String, action: bool) {
-        self.messages.push_back((nick, msg, action));
+        let now = Local::now();
+        self.messages.push_back((now, nick, msg, action));
+        let mut offest_offset = 0;
         while self.messages.len() > self.max_lines() {
             self.messages.pop_front();
+            offest_offset += 1;
         }
+
+        self.scroll_offset -= offest_offset;
 
         self.rebuild_widgets();
     }
