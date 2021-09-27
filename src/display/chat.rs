@@ -16,9 +16,11 @@ fn colour_from_nick(nick: &str) -> Color {
 }
 
 fn message_to_widget(timestamp: DateTime<Local>, nick: &str, message: &str, action: bool, max_width: usize) -> Vec<Line> {
+    let timestamp = timestamp.format("%H:%M:%S   ").to_string();
+
     let nick = match action {
         true => format!("{} ", nick),
-        false => format!("{}> ", nick),
+        false => format!("{}: ", nick),
     };
 
     let (nick_fg, msg_fg) = match action {
@@ -26,13 +28,23 @@ fn message_to_widget(timestamp: DateTime<Local>, nick: &str, message: &str, acti
         false => (Some(colour_from_nick(&nick)), None)
     };
 
-    let offset = nick.len();
-    let mut message_lines = lines(message, max_width);
+    // Pad the message string so the word wrapping happens
+    // in the right place.
+    //
+    // It's a bit of a hack but it will do for now.
+    let padding = nick.len() + timestamp.len();
+    let mut m = String::with_capacity(padding + message.len());
+    (0..padding).for_each(|_| m.push('+'));
+    m.push_str(message);
 
-    let first_line = message_lines.remove(0);
+    let mut message_lines = lines(&m, max_width);
 
+    let mut first_line = message_lines.remove(0);
+    first_line = &first_line[padding..];
+
+    // Create the first line
     let first_line = Line::Start(
-        Text::new(&timestamp.format("%H:%M:%S : ").to_string(), None, None),
+        Text::new(&timestamp, Some(Color::DarkGrey), None),
         Text::new(&nick, nick_fg, None),
         Text::new(first_line, msg_fg, None)
     );
@@ -51,15 +63,17 @@ pub struct Chat {
     viewport: Viewport,
     scroll_offset: isize,
     unread: usize,
+    render_half: bool,
 }
 
 impl Chat {
     pub fn new(size: ScreenSize) -> Self {
         let mut messages = VecDeque::new();
 
-        let msg = "hello this is a longer name than expected and some more chars here and bluh bleh blah blop bop plop blarp lark lork flerp florp fiddlestick and boring bo bo tricks and I ran out of i".to_string();
-        // let msg = "hello this is a longer name than expected".to_string();
-        for i in 0..70 {
+        // let msg = "hello this is a longer name than expected and some more chars here and bluh bleh blah blop bop plop blarp lark lork flerp florp fiddlestick and boring bo bo tricks and I ran out of i".to_string();
+        let msg = "hello this is a longer name than expected".to_string();
+        let msg = "hellothisisalongernamethanexpectedandiwanttoseemorestuffhereisay".to_string();
+        for i in 0..20 {
             messages.push_back((Local::now(), format!("User-{}", i), msg.clone(), i % 5 == 0));
         }
 
@@ -69,13 +83,21 @@ impl Chat {
             viewport: Viewport::new(ScreenPos::zero(), size),
             scroll_offset: 0,
             unread: 0,
+            render_half: false,
         }
+    }
+
+    pub fn half(&mut self) {
+        self.render_half = true;
+    }
+
+    pub fn full(&mut self) {
+        self.render_half = false;
     }
 
     pub fn rebuild_widgets(&mut self) {
         // If the viewport is too small then bail
         if self.viewport.size.width < 15 {
-
             if self.viewport.size.width > 5 {
                 self.viewport.draw_widget(&Text::new(" - ??? - ", None, Some(Color::Red)), ScreenPos::new(0, self.max_lines() as u16 - 1));
             }
@@ -99,7 +121,12 @@ impl Chat {
         }
 
         // Draw the widgets onto the viewport
-        let offset = self.widgets.len() - self.max_lines() - self.scroll_offset as usize;
+        let offset = {
+            match self.widgets.len() > self.max_lines() {
+                true => self.widgets.len() - self.max_lines() - self.scroll_offset as usize,
+                false => 0,
+            }
+        };
         let mut y = 0;
         for widget in self.widgets.iter().skip(offset) {
             match widget {
@@ -149,7 +176,10 @@ impl Chat {
     }
 
     pub fn max_lines(&self) -> usize {
-        self.viewport.size.height as usize
+        match self.render_half {
+            false => self.viewport.size.height as usize,
+            true => self.viewport.size.height as usize / 2
+        }
     }
 
     pub fn new_message(&mut self, nick: String, msg: String, action: bool) {
@@ -172,6 +202,12 @@ impl Chat {
 
         self.rebuild_widgets();
     }
+
+    pub fn clear(&mut self) {
+        self.messages.clear();
+        self.widgets.clear();
+        self.reset_scroll();
+    }
 }
 
 impl super::View for Chat {
@@ -182,5 +218,6 @@ impl super::View for Chat {
 
     fn resize(&mut self, width: u16, height: u16) {
         self.viewport.resize(width, height);
+        self.viewport.swap_buffers();
     }
 }

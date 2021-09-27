@@ -14,12 +14,17 @@ fn split_to_len(mut line: &str, max_width: usize) -> (&str, &str) {
 /// Split lines to fit the screen.
 fn split_lines(mut line: &str, max_width: usize) -> Vec<&str> {
     let mut lines = Vec::new();
+    let line_width = line.width();
 
     while line.width() > max_width {
         let (lhs, rhs) = split_to_len(line, max_width);
 
-        lines.push(lhs.trim_start());
-        line = rhs;
+        let lhs = lhs.trim_start();
+        if lhs.len() > 0 {
+            lines.push(lhs);
+        }
+
+        line = rhs.trim_start();
     }
 
     lines.push(line.trim_start());
@@ -38,5 +43,25 @@ pub fn lines(input: &str, max_width: usize) -> Vec<&str> {
     lines
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
 
+    #[test]
+    fn test_split_nospace() {
+        let line = "hello";
+        let max_width = 4;
+        let result = lines(line, max_width);
 
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_split_prefix_space() {
+        let line = "   hello";
+        let max_width = 5;
+        let result = lines(line, max_width);
+
+        assert_eq!(result.len(), 2);
+    }
+}

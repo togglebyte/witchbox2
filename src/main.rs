@@ -1,4 +1,4 @@
-use neotwitch::{IrcMessage, TwitchMessage};
+use neotwitch::{Irc, IrcMessage, TwitchMessage, ChannelPoints};
 use tinybit::events::{events, EventModel};
 
 mod display;
@@ -6,18 +6,30 @@ mod twitch;
 
 pub enum Event {
     Chat { nick: String, msg: String, action: bool },
-    Twitch(TwitchMessage),
+    ClearChat,
+    Twitch(twitch::Twitch),
     Log(String),
     Quit,
 }
 
 impl Event {
-    fn from_irc(irc_msg: IrcMessage) -> Self {
-        Self::Chat {
-            msg: irc_msg.message.into(),
-            nick: irc_msg.user.into(),
-            action: irc_msg.is_action,
+    fn from_irc(irc: Irc) -> Self {
+        match irc {
+            Irc::Message(msg) => Self::Chat {
+                msg: msg.message.into(),
+                nick: msg.user.into(),
+                action: msg.action,
+            },
+            Irc::ClearChat => Self::ClearChat,
         }
+    }
+
+    fn from_bits(bits: neotwitch::BitsEvent) -> Self {
+        Self::Twitch(twitch::Twitch::Bits(bits))
+    }
+
+    fn from_channel_event(channel_ev: ChannelPoints) -> Self {
+        Self::Twitch(twitch::Twitch::ChannelEvent(channel_ev))
     }
 }
 

@@ -2,7 +2,7 @@ use euclid::default::Vector2D;
 use rand::prelude::*;
 use tinybit::events::*;
 use tinybit::render::RenderTarget;
-use tinybit::{term_size, Camera, Pixel, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport};
+use tinybit::{term_size, Camera, Pixel, Renderer, ScreenPos, ScreenSize, StdoutTarget, Viewport, Color};
 use anyhow::Result;
 
 #[derive(Debug)]
@@ -10,6 +10,7 @@ struct Char {
     c: char,
     current: Vector2D<f32>,
     dest: Vector2D<f32>,
+    fg_color: Option<Color>,
 }
 
 impl Char {
@@ -26,12 +27,28 @@ impl Char {
             None
         } else {
             let pos = self.current.cast::<u16>();
-            let pix = Pixel::new(self.c, ScreenPos::new(pos.x, pos.y), None, None);
+                let pix = Pixel::new(self.c, ScreenPos::new(pos.x, pos.y), self.fg_color, None);
             Some(pix)
         }
     }
+
+    fn done(&self) -> bool {
+        self.current == self.dest
+    }
 }
 
+fn random_anim() -> Animation {
+    const ANIMS: [Animation; 3] = [
+        Animation::Rain,
+        Animation::Scatter,
+        Animation::WriteOut,
+    ];
+
+    let mut rng = thread_rng();
+    *ANIMS.choose(&mut rng).unwrap()
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum Animation {
     Rain,
     Scatter,
@@ -82,7 +99,7 @@ fn get_chars(
 
             let dest = Vector2D::new(x as f32, y as f32);
 
-            chars.push(Char { c, dest, current });
+            chars.push(Char { c, dest, current, fg_color: Some(Color::Red) });
 
             x += 1;
         }
@@ -108,69 +125,95 @@ fn animate(text: &str, animation: Animation) -> Result<()> {
 
     let mut chars = get_chars(text, animation, &mut viewport);
 
-    // for event in events(EventModel::Fps(20)) {
-    //     match event {
-    //         Event::Tick => {
-    //             chars.iter_mut().for_each(Char::step);
-    //             draw(&chars, &mut viewport);
-    //             renderer.render(&mut viewport);
-    //             viewport.swap_buffers();
-    //         }
-    //         Event::Key(_) => break,
-    //         _ => {}
-    //     }
-    // }
-
     Ok(())
 }
 
-// fn main() -> Result<()> {
-//     let input = "This is some text that \n\nis longer and needs more space \non two lines";
-//     animate(input, Animation::Rain)?;
-//     Ok(())
-// }
+enum Stage {
+    Animating,
+    Displaying(usize),
+    Done,
+}
 
-#[cfg(test)]
-mod test {
-    use super::*;
+pub struct Anim {
+    chars: Vec<Char>,
+    stage: Stage,
+}
 
-    #[test]
-    fn lines_split() {
-        let expected = vec!["one".to_string(), "two".to_string()];
-        let actual = lines("one\ntwo", usize::MAX);
-        assert_eq!(expected, actual);
+impl Anim {
+    pub fn new(input: String, animation: Animation, viewport: &mut Viewport) -> Self {
+        let chars = get_chars(&input, animation, viewport);
+        Self {
+            chars,
+            stage: Stage::Animating,
+        }
     }
 
-    #[test]
-    // Lines that are longer than the screen width
-    // are split on white space
-    fn long_lines_split() {
-        let input = "long line";
-        let expected = vec!["long", "line"];
-        let screen_width = "long li".len();
-        let actual = lines(input, screen_width);
-        assert_eq!(expected, actual);
-    }
+    pub fn update(&mut self, renderer: &mut Renderer<StdoutTarget>, viewport: &mut Viewport) -> bool {
+        self.chars.iter_mut().for_each(Char::step);
+        draw(&self.chars, viewport);
+        renderer.render(viewport);
+        viewport.swap_buffers();
 
-    #[test]
-    // Line is longer than the screen width,
-    // and has no spacing
-    fn long_line_split() {
-        let input = "1234567890ABCDE";
-        let expected = vec!["12345", "67890", "ABCDE"];
-        let screen_width = 5;
-        let actual = lines(input, screen_width);
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    // Split on other
-    fn split_on_tab() {
-        let input = "long\tline";
-        let expected = vec!["long", "line"];
-        let screen_width = "long li".len();
-        let actual = lines(input, screen_width);
-        assert_eq!(expected, actual);
+        match self.stage {
+            Stage::Animating if self.chars.iter().filter(|c| !c.done()).count() == 0 => {
+                self.stage = Stage::Displaying(1000);
+                false
+            }
+            Stage::Displaying(ref mut val) => {
+                *val -= 20;
+                if *val == 0 {
+                    self.stage = Stage::Done;
+                }
+                false
+            }
+            Stage::Animating => false,
+            Stage::Done => true,
+        }
     }
 }
+
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use super::input::lines;
+
+//     #[test]
+//     fn lines_split() {
+//         let expected = vec!["one".to_string(), "two".to_string()];
+//         let actual = lines("one\ntwo", usize::MAX);
+//         assert_eq!(expected, actual);
+//     }
+
+//    #[test]
+//     // Lines that are longer than the screen width
+//     // are split on white space
+//     fn long_lines_split() {
+//         let input = "long line";
+//         let expected = vec!["long", "line"];
+//         let screen_width = "long li".len();
+//         let actual = lines(input, screen_width);
+//         assert_eq!(expected, actual);
+//     }
+
+//     #[test]
+//     // Line is longer than the screen width,
+//     // and has no spacing
+//     fn long_line_split() {
+//         let input = "1234567890ABCDE";
+//         let expected = vec!["12345", "67890", "ABCDE"];
+//         let screen_width = 5;
+//         let actual = lines(input, screen_width);
+//         assert_eq!(expected, actual);
+//     }
+
+//     #[test]
+//     // Split on other
+//     fn split_on_tab() {
+//         let input = "long\tline";
+//         let expected = vec!["long", "line"];
+//         let screen_width = "long li".len();
+//         let actual = lines(input, screen_width);
+//         assert_eq!(expected, actual);
+//     }
+// }
 
