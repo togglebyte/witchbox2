@@ -140,7 +140,8 @@ pub struct Anim {
 }
 
 impl Anim {
-    pub fn new(input: String, animation: Animation, viewport: &mut Viewport) -> Self {
+    pub fn new(input: String, viewport: &mut Viewport) -> Self {
+        let animation = random_anim();
         let chars = get_chars(&input, animation, viewport);
         Self {
             chars,

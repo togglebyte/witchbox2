@@ -71,8 +71,7 @@ impl Chat {
         let mut messages = VecDeque::new();
 
         // let msg = "hello this is a longer name than expected and some more chars here and bluh bleh blah blop bop plop blarp lark lork flerp florp fiddlestick and boring bo bo tricks and I ran out of i".to_string();
-        let msg = "hello this is a longer name than expected".to_string();
-        let msg = "hellothisisalongernamethanexpectedandiwanttoseemorestuffhereisay".to_string();
+        let msg = "hello there".to_string();
         for i in 0..20 {
             messages.push_back((Local::now(), format!("User-{}", i), msg.clone(), i % 5 == 0));
         }
@@ -161,6 +160,10 @@ impl Chat {
     pub fn scroll(&mut self, up: bool, amount: isize) {
         match up {
             true => {
+                if self.widgets.len() <= self.max_lines() {
+                    return;
+                }
+
                 let max = self.widgets.len() as isize - self.max_lines() as isize;
                 let amount = (max - self.scroll_offset).min(amount);
                 self.scroll_offset += amount

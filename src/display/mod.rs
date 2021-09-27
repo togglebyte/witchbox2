@@ -16,6 +16,8 @@ enum CurrentView {
 }
 
 pub fn run(events: Events<crate::Event>) {
+    let mut filters = crate::events::filter::Filter::new();
+
     let (width, height) =
         term_size().expect("Can't get the term size? Can't play the game!");
 
@@ -57,16 +59,11 @@ pub fn run(events: Events<crate::Event>) {
                     KeyCode::Char('j') => chat.scroll(false, 1),
                     KeyCode::Char('d') => chat.reset_scroll(),
                     KeyCode::Char('x') => {
-                       chat.new_message(
+                        chat.new_message(
                             "fancy pants".into(),
                             "Look I have a keyboard".into(),
                             false,
                         );
-                    }
-                    KeyCode::Char('a') => {
-                        renderer.clear();
-                        channel_events.animate();
-                        current_view = CurrentView::ChannelEvent;
                     }
                     _ => {}
                 }
@@ -87,30 +84,34 @@ pub fn run(events: Events<crate::Event>) {
                     CurrentView::ChannelEvent => {}
                 }
             }
-            Event::User(ev) => match ev {
-                crate::Event::Chat { nick, msg, action } => {
-                    chat.new_message(nick, msg, action);
-                    chat.draw(&mut renderer);
+            Event::User(ev) => {
+                if let Some(ev) = filters.filter(ev) {
+                    match ev {
+                        crate::Event::Chat { nick, msg, action } => {
+                            chat.new_message(nick, msg, action);
+                            chat.draw(&mut renderer);
 
-                    if let CurrentView::Chat = current_view {
-                        chat.rebuild_widgets();
-                        chat.draw(&mut renderer);
+                            if let CurrentView::Chat = current_view {
+                                chat.rebuild_widgets();
+                                chat.draw(&mut renderer);
+                            }
+                        }
+                        crate::Event::ClearChat => {
+                            chat.clear();
+                            chat.rebuild_widgets();
+                            chat.draw(&mut renderer);
+                        }
+                        crate::Event::Twitch(twitch) => {
+                            chat.half();
+                            chat.rebuild_widgets();
+                            channel_events.event(twitch);
+                            current_view = CurrentView::ChannelEvent;
+                        }
+                        crate::Event::Log(_msg) => {}
+                        crate::Event::Quit => break,
                     }
                 }
-                crate::Event::ClearChat => {
-                    chat.clear();
-                    chat.rebuild_widgets();
-                    chat.draw(&mut renderer);
-                }
-                crate::Event::Twitch(twitch) => {
-                    chat.half();
-                    chat.rebuild_widgets();
-                    channel_events.event(twitch);
-                    current_view = CurrentView::ChannelEvent;
-                }
-                crate::Event::Log(_msg) => {}
-                crate::Event::Quit => break,
-            },
+            }
         }
     }
 }

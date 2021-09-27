@@ -3,6 +3,8 @@ use tinybit::events::{events, EventModel};
 
 mod display;
 mod twitch;
+mod events;
+mod sound_player;
 
 pub enum Event {
     Chat { nick: String, msg: String, action: bool },
@@ -39,12 +41,23 @@ impl Into<tinybit::events::Event<Event>> for Event {
     }
 }
 
+
 #[tokio::main]
 async fn main() {
+    // let sink = rodio::Sink::try_new(&handle).unwrap();
+
+    // let file = std::fs::File::open("examples/music.wav").unwrap();
+    // sink.append(rodio::Decoder::new(std::io::BufReader::new(file)).unwrap());
+
+    // sink.sleep_until_end();
+
+    // let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+    // let mut player = sound_player::SoundPlayer::new("/home/togglebit/projects/rust/witchbox2/sounds/glass.mp3", handle.clone());
+    // let val = player.play(1.0);
+    // loop {}
+
+
     let (tx, events) = events::<crate::Event>(EventModel::Fps(20));
-    let handle = std::thread::spawn(move || {
-        display::run(events);
-    });
     tokio::spawn(twitch::start(tx));
-    let _ = handle.join();
+    display::run(events);
 }
