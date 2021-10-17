@@ -74,7 +74,10 @@ enum Inst {
 fn random_color_string() -> String {
     let mut ret = "#".to_string();
     for _ in 0..6 {
-        let c = "0123456789ABCDEF".chars().choose(&mut thread_rng()).unwrap();
+        let c = "0123456789ABCDEF"
+            .chars()
+            .choose(&mut thread_rng())
+            .unwrap();
         ret.push(c);
     }
     ret
@@ -108,14 +111,22 @@ fn entry_to_inst(entry: &Entry, colors: &mut Colors, width: usize) -> Vec<Line> 
 fn event_to_inst(event: Twitch, colors: &mut Colors, width: usize) -> Option<Vec<Line>> {
     if let Twitch::ChannelEvent(cp) = event {
         let mut lines = Lines::new(width);
-        let top = format!("{:-<width$}", width = width);
-        let bottom = format!("{:-<width$}", width = width);
+        let top = format!("{:->width$}", "", width = width);
+        let bottom = format!("{:->width$}", "", width = width);
 
         if let Ok(color) = colors.from_hex("#ff0000").and_then(Colors::init_fg) {
             lines.push(Instruction::Color(color));
         }
 
         lines.push_str(&top);
+
+        let message = format!("{} - {}", cp.user.display_name, cp.reward.title);
+        let messages = split(&message, width, 2); // add one space for each side of the border
+
+        for message in messages {
+            lines.push_str(&format!("| {} {:>width$}", message, "|", width=width));
+        }
+
         lines.push_str(&bottom);
         lines.push(Instruction::Reset);
 
@@ -139,7 +150,9 @@ fn event_to_inst(event: Twitch, colors: &mut Colors, width: usize) -> Option<Vec
 
 #[tokio::main]
 async fn main() {
-    tinylog::init_logger().await.expect("Failed to start logger");
+    tinylog::init_logger()
+        .await
+        .expect("Failed to start logger");
 
     let (tx, rx) = mpsc::channel();
     tokio::spawn(twitch::start(tx.clone()));
@@ -177,6 +190,12 @@ async fn main() {
 
     let mut orig_messages = vec![
          Entry { color: Some(random_color_string()), nick: "suuuuperlonglurpdjjrpsomekindoflinenamethatisreallyinconvenientbutitsgoingtobeherefornowsoicantestthis".into(),    message: "4 first blah blah".into() },
+         Entry { color: Some(random_color_string()), nick: "florpy".into(),    message: "🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅".into() },
+         Entry { color: Some(random_color_string()), nick: "florpy".into(),    message: "🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅".into() },
+         Entry { color: Some(random_color_string()), nick: "florpy".into(),    message: "🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅".into() },
+         Entry { color: Some(random_color_string()), nick: "florpy".into(),    message: "🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅".into() },
+         Entry { color: Some(random_color_string()), nick: "florpy".into(),    message: "🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅".into() },
+         Entry { color: Some(random_color_string()), nick: "florpy".into(),    message: "🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅🍅".into() },
          // Entry { color: Some(random_color_string()), nick: "Blrp".to_string(),          message: "firstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlinfirstlineeeeeeeeeeeeeeeeefirstline".to_string() },
          // Entry { color: Some(random_color_string()), nick: "Blorpsdafasdfkdfs".into(),  message: "0 first blah blah".into() },
          // Entry { color: Some(random_color_string()), nick: "Blawdajorp".into(),         message: "1 first blah blah".into() },
@@ -227,7 +246,11 @@ async fn main() {
         while let Ok(event) = rx.try_recv() {
             match event {
                 Event::Chat(irc) => {
-                    let entry = Entry { color: irc.tags.get("color").cloned(), nick: irc.user, message: irc.message };
+                    let entry = Entry {
+                        color: irc.tags.get("color").cloned(),
+                        nick: irc.user,
+                        message: irc.message,
+                    };
                     let imfedup = entry_to_inst(&entry, &mut colors, chatwin.size().width as usize);
 
                     for val in imfedup {
@@ -236,7 +259,9 @@ async fn main() {
                     chat_messages.push(entry);
                 }
                 Event::Twitch(t) => {
-                    if let Some(lines) = event_to_inst(t, &mut colors, chatwin.size().width as usize) {
+                    if let Some(lines) =
+                        event_to_inst(t, &mut colors, chatwin.size().width as usize)
+                    {
                         for line in lines {
                             scroll_buffer.push(line);
                         }
