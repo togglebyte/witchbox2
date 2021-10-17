@@ -152,8 +152,7 @@ impl Anim {
     pub fn update(&mut self, renderer: &mut Renderer<StdoutTarget>, viewport: &mut Viewport) -> bool {
         self.chars.iter_mut().for_each(Char::step);
         draw(&self.chars, viewport);
-        renderer.render(viewport);
-        viewport.swap_buffers();
+        viewport.render(renderer);
 
         match self.stage {
             Stage::Animating if self.chars.iter().filter(|c| !c.done()).count() == 0 => {

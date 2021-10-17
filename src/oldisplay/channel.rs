@@ -10,6 +10,7 @@ pub struct ChannelEvents {
     animation_queue: VecDeque<(Anim, Twitch)>,
     current: Option<(Anim, Twitch)>,
     triggers: crate::events::triggers::Triggers,
+    sendy: crate::Sendy,
 }
 
 impl ChannelEvents {
@@ -26,8 +27,8 @@ impl ChannelEvents {
         }
     }
 
-    pub fn new(size: ScreenSize) -> Self {
-        let triggers = crate::events::triggers::Triggers::new();
+    pub fn new(size: ScreenSize, sendy: crate::Sendy) -> Self {
+        let triggers = crate::events::triggers::Triggers::new(sendy.clone());
         let size = ScreenSize::new(size.width, size.height / 2);
         let viewport = Viewport::new(ScreenPos::zero(), size);
         Self {
@@ -35,6 +36,7 @@ impl ChannelEvents {
             animation_queue: VecDeque::new(),
             triggers,
             current: None,
+            sendy,
         }
     }
 

@@ -1,24 +1,24 @@
 use std::sync::mpsc;
 use std::time::Duration;
 
-use neotwitch::{BitsEvent, Irc, TwitchMessage, ChannelPointsEvent, ChannelPoints};
-use tinybit::events::Event;
+use anyhow::{anyhow, Result};
+use neotwitch::{BitsEvent, ChannelPoints, ChannelPointsEvent, FollowEvent, Irc, SubscribeEvent, TwitchMessage};
 use tinyroute::client::{connect, ClientMessage, TcpClient};
 use tinyroute::frame::Frame;
+use tinyroute::Agent;
 use tokio::time;
+use log::error;
 
-use anyhow::{anyhow, Result};
-
-const MAX_RETRIES: usize = 5;
-
-type Sendy = mpsc::Sender<Event<crate::Event>>;
+const MAX_RETRIES: usize = 500;
 
 pub enum Twitch {
     Bits(BitsEvent),
     ChannelEvent(ChannelPoints),
+    Follow(FollowEvent),
+    Sub(SubscribeEvent),
 }
 
-pub async fn start(tx: Sendy) {
+pub async fn start(tx: crate::Sendy) {
     let mut reconnect_count = 0;
     loop {
         reconnect_count += 1;
@@ -33,10 +33,7 @@ pub async fn start(tx: Sendy) {
                 }
             }
             Err(e) => {
-                let _ = tx.send(Event::User(crate::Event::Log(format!(
-                    "Failed to connect: {}",
-                    e
-                ))));
+                error!("Failed to connect: {}", e);
 
                 if reconnect_count > MAX_RETRIES {
                     break;
@@ -48,36 +45,28 @@ pub async fn start(tx: Sendy) {
     }
 }
 
-async fn run(tx: Sendy, client: TcpClient) -> Result<()> {
-    let (client_tx, mut client_rx) =
-        connect(client, Some(Duration::from_secs(5 * 60 - 10)));
+async fn run(tx: crate::Sendy, client: TcpClient) -> Result<()> {
+    let (client_tx, mut client_rx) = connect(client, Some(Duration::from_secs(5 * 60 - 10)));
 
     let msg = b"chat|sub";
     let framed_message = Frame::frame_message(msg);
-    client_tx.send(ClientMessage::Payload(framed_message)).await?;
+    client_tx.send(ClientMessage::Payload(framed_message))?;
 
     let msg = b"cpoints|sub";
     let framed_message = Frame::frame_message(msg);
-    client_tx.send(ClientMessage::Payload(framed_message)).await?;
+    client_tx.send(ClientMessage::Payload(framed_message))?;
 
     while let Some(bytes) = client_rx.recv().await {
         match serde_json::from_slice::<Irc>(&bytes) {
-            Ok(irc_msg) => {
-                drop(tx.send(crate::Event::from_irc(irc_msg).into()))
-            }
+            Ok(irc_msg) => drop(tx.send(crate::Event::from_irc(irc_msg).into())),
             Err(_) => match serde_json::from_slice::<TwitchMessage>(&bytes) {
                 Ok(TwitchMessage::Message { data: twitch_msg }) => {
-                    let message_topic =
-                        twitch_msg.topic.split('.').collect::<Vec<&str>>()[0];
+                    let message_topic = twitch_msg.topic.split('.').collect::<Vec<&str>>()[0];
 
                     match message_topic {
                         "channel-bits-events-v1" => { /* fixme: blend this in to v2 */ }
                         "channel-bits-events-v2" => {
                             let data: BitsEvent = serde_json::from_str(&twitch_msg.message).expect("it's all good");
-                            // let ui_data = models::BitsEvent {
-                            //     user_name: data.data.user_name,
-                            //     bits: data.data.bits_used,
-                            // };
                             let _ = tx.send(crate::Event::from_bits(data).into());
                         }
                         "channel-bits-badge-unlocks" => {}
@@ -89,6 +78,43 @@ async fn run(tx: Sendy, client: TcpClient) -> Result<()> {
                                 }
                                 _ => {}
                             }
+                        }
+                        "following" => {
+                            let data: FollowEvent =
+                                serde_json::from_str(&twitch_msg.message).expect("it's that good ole json");
+                            let _ = tx.send(crate::Event::from_follow(data).into());
+                        }
+                        "channel-subscribe-events-v1" => {
+                            let sub = serde_json::from_str::<SubscribeEvent>(&twitch_msg.message).expect("yay");
+                            // {
+                            //     Err(e) => {
+                            //         // tl_error!(agent, Address, "Failed to serialize data: {}", e);
+                            //         continue;
+                            //     }
+                            //     Ok(sub) => sub,
+                            // };
+
+                            // let ui_data = models::Subscription {
+                            //     display_name: data
+                            //         .display_name
+                            //         .unwrap_or("".to_string()),
+                            //     sub_plan: data.sub_plan,
+                            //     cumulative_months: data
+                            //         .cumulative_months
+                            //         .unwrap_or(0),
+                            //     streak_months: data.streak_months.unwrap_or(0),
+                            //     context: data.context,
+                            //     is_gift: data.is_gift,
+                            //     recipient_display_name: data
+                            //         .recipient_display_name
+                            //         .unwrap_or("".to_string()),
+                            //     months: data.months.unwrap_or(0),
+                            //     multi_month_duration: data
+                            //         .multi_month_duration
+                            //         .unwrap_or(0),
+                            //     sub_message: data.sub_message.message,
+                            // };
+                            let _ = tx.send(crate::Event::from_sub(sub).into());
                         }
                         _ => {}
                     }

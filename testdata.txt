@@ -1,0 +1,34 @@
+INFO neotwitch::channelpoints | 1981 | 15:19:52 | ChannelPoints   | {"type":"MESSAGE","data":{"topic":"channel-subscribe-events-v
+1.474725923","message":"{\"benefit_end_month\":0,\"user_name\":\"ananonymousgifter\",\"display_name\":\"An Anonymous Gifter\",\"c
+hannel_name\":\"togglebit\",\"user_id\":\"274598607\",\"channel_id\":\"474725923\",\"recipient_id\":\"163805807\",\"recipient_use
+r_name\":\"donho\",\"recipient_display_name\":\"DonHo\",\"time\":\"2021-10-04T13:20:03.610088671Z\",\"sub_message\":{\"message\":
+\"\",\"emotes\":null},\"sub_plan\":\"1000\",\"sub_plan_name\":\"Channel Subscription (togglebit)\",\"months\":3,\"context\":\"sub
+gift\",\"is_gift\":true,\"multi_month_duration\":1}"}}
+INFO neotwitch::channelpoints | 1982 | 15:19:52 | ChannelPoints   | {"type":"MESSAGE","data":{"topic":"channel-subscribe-events-v
+1.474725923","message":"{\"benefit_end_month\":0,\"channel_name\":\"togglebit\",\"channel_id\":\"474725923\",\"recipient_id\":\"1
+63805807\",\"recipient_user_name\":\"donho\",\"recipient_display_name\":\"DonHo\",\"time\":\"2021-10-04T13:20:03.610916099Z\",\"s
+ub_message\":{\"message\":\"\",\"emotes\":null},\"sub_plan\":\"1000\",\"sub_plan_name\":\"Channel Subscription (togglebit)\",\"mo
+nths\":3,\"context\":\"anonsubgift\",\"is_gift\":true,\"multi_month_duration\":1}"}}
+INFO neotwitch::channelpoints | 1983 | 15:19:52 | ChannelPoints   | {"type":"MESSAGE","data":{"topic":"channel-subscribe-events-v
+1.474725923","message":"{\"benefit_end_month\":0,\"user_name\":\"ananonymousgifter\",\"display_name\":\"An Anonymous Gifter\",\"c
+hannel_name\":\"togglebit\",\"user_id\":\"274598607\",\"channel_id\":\"474725923\",\"recipient_id\":\"144579127\",\"recipient_use
+r_name\":\"eldaruio\",\"recipient_display_name\":\"ElDaruio\",\"time\":\"2021-10-04T13:20:03.617804963Z\",\"sub_message\":{\"mess
+age\":\"\",\"emotes\":null},\"sub_plan\":\"1000\",\"sub_plan_name\":\"Channel Subscription (togglebit)\",\"months\":2,\"context\"
+:\"subgift\",\"is_gift\":true,\"multi_month_duration\":1}"}}
+INFO neotwitch::channelpoints | 1984 | 15:19:52 | ChannelPoints   | {"type":"MESSAGE","data":{"topic":"channel-subscribe-events-v
+1.474725923","message":"{\"benefit_end_month\":0,\"channel_name\":\"togglebit\",\"channel_id\":\"474725923\",\"recipient_id\":\"1
+44579127\",\"recipient_user_name\":\"eldaruio\",\"recipient_display_name\":\"ElDaruio\",\"time\":\"2021-10-04T13:20:03.618888306Z
+\",\"sub_message\":{\"message\":\"\",\"emotes\":null},\"sub_plan\":\"1000\",\"sub_plan_name\":\"Channel Subscription (togglebit)\
+",\"months\":2,\"context\":\"anonsubgift\",\"is_gift\":true,\"multi_month_duration\":1}"}}
+INFO neotwitch::channelpoints | 1985 | 15:19:52 | ChannelPoints   | {"type":"MESSAGE","data":{"topic":"channel-subscribe-events-v
+1.474725923","message":"{\"benefit_end_month\":0,\"user_name\":\"ananonymousgifter\",\"display_name\":\"An Anonymous Gifter\",\"c
+hannel_name\":\"togglebit\",\"user_id\":\"274598607\",\"channel_id\":\"474725923\",\"recipient_id\":\"31024691\",\"recipient_user
+_name\":\"philvessey\",\"recipient_display_name\":\"philvessey\",\"time\":\"2021-10-04T13:20:03.638409031Z\",\"sub_message\":{\"m
+essage\":\"\",\"emotes\":null},\"sub_plan\":\"1000\",\"sub_plan_name\":\"Channel Subscription (togglebit)\",\"months\":1,\"contex
+t\":\"subgift\",\"is_gift\":true,\"multi_month_duration\":1}"}}
+INFO neotwitch::channelpoints | 1986 | 15:19:52 | ChannelPoints   | {"type":"MESSAGE","data":{"topic":"channel-subscribe-events-v
+1.474725923","message":"{\"benefit_end_month\":0,\"user_name\":\"ananonymousgifter\",\"display_name\":\"An Anonymous Gifter\",\"c
+hannel_name\":\"togglebit\",\"user_id\":\"274598607\",\"channel_id\":\"474725923\",\"recipient_id\":\"21065580\",\"recipient_user
+_name\":\"strager\",\"recipient_display_name\":\"strager\",\"time\":\"2021-10-04T13:20:03.63941205Z\",\"sub_message\":{\"message\
+":\"\",\"emotes\":null},\"sub_plan\":\"1000\",\"sub_plan_name\":\"Channel Subscription (togglebit)\",\"months\":5,\"context\":\"s
+ubgift\",\"is_gift\":true,\"multi_month_duration\":1}"}}

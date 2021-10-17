@@ -4,20 +4,32 @@ use unicode_width::UnicodeWidthStr;
 /// to max length, or split it on max length if there is no 
 /// whitespace available.
 fn split_to_len(mut line: &str, max_width: usize) -> (&str, &str) {
-    let split_pos = &line[..max_width]
+
+    let index = {
+        let mut i = 0;
+        while !line.is_char_boundary(max_width - i) {
+            i += 1;
+        }
+
+        max_width - i
+    };
+
+    let split_pos = &line[..index]
         .rfind(char::is_whitespace)
         .unwrap_or(max_width);
+
     let (lhs, rhs) = line.split_at(*split_pos);
     (lhs, rhs)
 }
 
 /// Split lines to fit the screen.
-fn split_lines(mut line: &str, max_width: usize) -> Vec<&str> {
+fn split_lines<'lines, 'offset>(mut line: &'lines str, max_width: usize, starting_offset: &'offset mut usize) -> Vec<&'lines str> {
     let mut lines = Vec::new();
     let line_width = line.width();
 
-    while line.width() > max_width {
-        let (lhs, rhs) = split_to_len(line, max_width);
+    while line.width() + *starting_offset > max_width {
+        let (lhs, rhs) = split_to_len(line, max_width - *starting_offset);
+        *starting_offset = 0;
 
         let lhs = lhs.trim_start();
         if lhs.len() > 0 {
@@ -34,10 +46,10 @@ fn split_lines(mut line: &str, max_width: usize) -> Vec<&str> {
 
 /// Split the input into lines that will fit on screen,
 /// also break on newline chars.
-pub fn lines(input: &str, max_width: usize) -> Vec<&str> {
+pub fn lines(input: &str, max_width: usize, mut starting_offset: usize) -> Vec<&str> {
     let lines = input
-        .split('\n')
-        .map(|line| split_lines(line, max_width))
+        .lines()
+        .map(|line| split_lines(line, max_width, &mut starting_offset))
         .flatten()
         .collect::<Vec<_>>();
     lines
