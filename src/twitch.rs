@@ -1,11 +1,9 @@
-use std::sync::mpsc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use neotwitch::{BitsEvent, ChannelPoints, ChannelPointsEvent, FollowEvent, Irc, SubscribeEvent, TwitchMessage};
 use tinyroute::client::{connect, ClientMessage, TcpClient};
 use tinyroute::frame::Frame;
-use tinyroute::Agent;
 use tokio::time;
 use log::error;
 
@@ -18,7 +16,7 @@ pub enum Twitch {
     Sub(SubscribeEvent),
 }
 
-pub async fn start(tx: crate::Sendy) {
+pub async fn start(tx: crate::EventSender) {
     let mut reconnect_count = 0;
     loop {
         reconnect_count += 1;
@@ -45,7 +43,7 @@ pub async fn start(tx: crate::Sendy) {
     }
 }
 
-async fn run(tx: crate::Sendy, client: TcpClient) -> Result<()> {
+async fn run(tx: crate::EventSender, client: TcpClient) -> Result<()> {
     let (client_tx, mut client_rx) = connect(client, Some(Duration::from_secs(5 * 60 - 10)));
 
     let msg = b"chat|sub";
@@ -58,7 +56,7 @@ async fn run(tx: crate::Sendy, client: TcpClient) -> Result<()> {
 
     while let Some(bytes) = client_rx.recv().await {
         match serde_json::from_slice::<Irc>(&bytes) {
-            Ok(irc_msg) => drop(tx.send(crate::Event::from_irc(irc_msg).into())),
+            Ok(irc_msg) => drop(tx.send(crate::Event::from_irc(irc_msg).into()).await),
             Err(_) => match serde_json::from_slice::<TwitchMessage>(&bytes) {
                 Ok(TwitchMessage::Message { data: twitch_msg }) => {
                     let message_topic = twitch_msg.topic.split('.').collect::<Vec<&str>>()[0];
