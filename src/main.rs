@@ -6,6 +6,7 @@ use neotwitch::{ChannelPoints, FollowEvent, Irc, IrcMessage, SubscribeEvent};
 mod transformers;
 mod twitch;
 mod display;
+mod testdata;
 
 pub type EventSender = tokio::sync::mpsc::Sender<Event>;
 pub type EventReceiver = tokio::sync::mpsc::Receiver<Event>;
@@ -48,6 +49,17 @@ async fn main() {
     tinylog::init_logger()
         .await
         .expect("Failed to start logger");
+
+    let mut args = std::env::args().skip(1);
+
+    if let Some(s) = args.next() {
+        match s.as_ref() {
+            "hydrate" => testdata::hydrate().await,
+            "bits" => testdata::bits().await,
+            _ => {}
+        }
+        return;
+    }
 
     let (tx, rx) = tokio::sync::mpsc::channel(100);
     let (display_tx, display_rx) = display::channel();

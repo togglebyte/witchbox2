@@ -1,8 +1,9 @@
 use anathema::{Colors, Line, Lines, Instruction};
 
-pub enum Display {
+pub enum DisplayMessage {
     Chat(ChatMessage),
     ClearChat,
+    ChannelPoints(ChannelPointsMessage),
 }
 
 // -----------------------------------------------------------------------------
@@ -21,7 +22,6 @@ impl ChatMessage {
 
         if let Some(ref col) = self.color {
             let res = colors.from_hex(col).and_then(Colors::init_fg);
-            log::info!("{:?}", res);
             if let Ok(col) = res {
                 lines.push(Instruction::Color(col));
             }
@@ -35,4 +35,10 @@ impl ChatMessage {
         lines.push_str(&self.message);
         lines.complete()
     }
+}
+
+#[derive(Debug)]
+pub struct ChannelPointsMessage {
+    pub user: String,
+    pub title: String,
 }

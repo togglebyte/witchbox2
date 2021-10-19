@@ -24,12 +24,14 @@
 
 use crate::display::DisplayEventTx;
 use crate::{Event, EventReceiver};
-use crate::display::models::Display;
+use crate::display::models::DisplayMessage;
 
 mod chat;
 mod chatfilter;
 mod filters;
+mod channel_events;
 
+use channel_events::ChannelPointsTransformer;
 use chat::IrcTransformer;
 use chatfilter::ChatFilter;
 use filters::Filters;
@@ -47,10 +49,19 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
             Event::Chat(irc) => {
                 if let Some(irc) = filters.chat_filter.filter(irc) {
                     let message = transformers.chat.transform(irc);
-                    display_tx.send(Display::Chat(message));
+                    display_tx.send(DisplayMessage::Chat(message));
                 }
             }
-            Event::ClearChat => drop(display_tx.send(Display::ClearChat)),
+            Event::ClearChat => drop(display_tx.send(DisplayMessage::ClearChat)),
+            Event::Twitch(twitch) => {
+                match twitch {
+                    crate::twitch::Twitch::ChannelEvent(channel_event) => {
+                        let message = transformers.channel_events.transform(channel_event);
+                        display_tx.send(DisplayMessage::ChannelPoints(message));
+                    }
+                    _ => unimplemented!(),
+                }
+            }
             _ => {}
         }
     }
@@ -58,10 +69,14 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
 
 pub struct Transformers {
     chat: IrcTransformer,
+    channel_events: ChannelPointsTransformer,
 }
 
 impl Transformers {
     fn new() -> Self {
-        Self { chat: IrcTransformer::new() }
+        Self { 
+            chat: IrcTransformer::new(),
+            channel_events: ChannelPointsTransformer::new(),
+        }
     }
 }

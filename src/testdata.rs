@@ -18,9 +18,17 @@ const GIFT_SUB: &str = r#"{"type":"MESSAGE","data":{"topic":"channel-subscribe-e
 const BITS: &str = r#"{"type":"MESSAGE","data":{"topic":"channel-bits-events-v2.474725923","message":"{\"data\":{\"user_name\":\"sir_klausi\",\"channel_name\":\"togglebit\",\"user_id\":\"209386371\",\"channel_id\":\"474725923\",\"time\":\"2021-09-30T09:13:06.377665427Z\",\"chat_message\":\"uni244\",\"bits_used\":244,\"total_bits_used\":2400,\"is_anonymous\":false,\"context\":\"cheer\",\"badge_entitlement\":null},\"version\":\"1.0\",\"message_type\":\"bits_event\",\"message_id\":\"2c834234-1401-5d94-8192-50b58c4cd56a\"}"}}"#;
 
 
-async fn send_test() {
+pub async fn hydrate() {
     let bytes = HYDRATE.as_bytes();
+    send_test(bytes).await;
+}
 
+pub async fn bits() {
+    let bytes = BITS.as_bytes();
+    send_test(bytes).await;
+}
+
+async fn send_test(bytes: &[u8]) {
     let tcp_client = TcpClient::connect("127.0.0.1:6000").await.unwrap();
     let (tx, rx) = connect(tcp_client, None);
 

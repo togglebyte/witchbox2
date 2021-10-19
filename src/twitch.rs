@@ -65,14 +65,14 @@ async fn run(tx: crate::EventSender, client: TcpClient) -> Result<()> {
                         "channel-bits-events-v1" => { /* fixme: blend this in to v2 */ }
                         "channel-bits-events-v2" => {
                             let data: BitsEvent = serde_json::from_str(&twitch_msg.message).expect("it's all good");
-                            let _ = tx.send(crate::Event::from_bits(data).into());
+                            let _ = tx.send(crate::Event::from_bits(data).into()).await;
                         }
                         "channel-bits-badge-unlocks" => {}
                         "channel-points-channel-v1" => {
                             let message_data = serde_json::from_str(&twitch_msg.message).expect("it's all good");
                             match message_data {
                                 ChannelPointsEvent::RewardRedeemed { redemption, .. } => {
-                                    let _ = tx.send(crate::Event::from_channel_event(redemption).into());
+                                    let _ = tx.send(crate::Event::from_channel_event(redemption).into()).await;
                                 }
                                 _ => {}
                             }
@@ -80,7 +80,7 @@ async fn run(tx: crate::EventSender, client: TcpClient) -> Result<()> {
                         "following" => {
                             let data: FollowEvent =
                                 serde_json::from_str(&twitch_msg.message).expect("it's that good ole json");
-                            let _ = tx.send(crate::Event::from_follow(data).into());
+                            let _ = tx.send(crate::Event::from_follow(data).into()).await;
                         }
                         "channel-subscribe-events-v1" => {
                             let sub = serde_json::from_str::<SubscribeEvent>(&twitch_msg.message).expect("yay");
@@ -112,7 +112,7 @@ async fn run(tx: crate::EventSender, client: TcpClient) -> Result<()> {
                             //         .unwrap_or(0),
                             //     sub_message: data.sub_message.message,
                             // };
-                            let _ = tx.send(crate::Event::from_sub(sub).into());
+                            let _ = tx.send(crate::Event::from_sub(sub).into()).await;
                         }
                         _ => {}
                     }
