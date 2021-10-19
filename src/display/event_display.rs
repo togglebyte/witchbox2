@@ -30,8 +30,14 @@ impl EventDisplay {
                 }
 
                 for c in chars {
+                    let color_id: i16 = c.color.into();
+                    let pair = Colors::get_color_pair(color_id as u32);
+                    window.set_color(pair);
                     window.add_char_at(c.current_pos, c.c);
                 }
+
+                let reset = Colors::get_color_pair(0);
+                window.set_color(reset);
             }
             None => {
                 if let Some((next_anim, audio)) = self.queue.pop_front() {

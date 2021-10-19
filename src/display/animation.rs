@@ -1,12 +1,21 @@
-use anathema::{split, Pos, Size};
+use anathema::{split, Color, Pos, Size};
 use rand::prelude::*;
 use unicode_width::UnicodeWidthStr;
 
+fn random_color() -> Color {
+    const COLORS: [Color; 7] = [Color::Red, Color::Green, Color::Yellow, Color::Blue, Color::Magenta, Color::Cyan, Color::White];
+
+    let mut rng = thread_rng();
+    *COLORS.choose(&mut rng).unwrap()
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Char {
-    pub current_pos: Pos,
-    dest: Pos,
     pub c: char,
+    pub current_pos: Pos,
+    pub color: Color,
+    start: Pos,
+    dest: Pos,
 }
 
 enum AnimType {
@@ -55,10 +64,18 @@ impl Animation {
 // -----------------------------------------------------------------------------
 //     - Character movement anim -
 // -----------------------------------------------------------------------------
+enum AnimState {
+    In,
+    Wait,
+    Out,
+    Done,
+}
+
 struct CharAnim {
     chars: Vec<Char>,
     is_done: bool,
     life: usize,
+    state: AnimState,
 }
 
 impl CharAnim {
@@ -71,55 +88,75 @@ impl CharAnim {
         for (y, line) in lines.into_iter().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 let mut rng = thread_rng();
+                let start = Pos::new(rng.gen_range(0..size.width), 1);
                 chars.push(Char {
                     dest: Pos::new(x as i32 + dest_x, y as i32 + dest_y),
-                    current_pos: Pos::new(rng.gen_range(0..size.width), 1),
+                    current_pos: start,
+                    start,
                     c,
+                    color: random_color(),
                 });
             }
         }
 
-        Self { chars, is_done: false, life: words.len() * 3 }
+        Self { chars, is_done: false, life: words.len() * 3, state: AnimState::In }
     }
 
     fn update(&mut self) -> Vec<Char> {
-        for c in &mut self.chars {
-            if c.current_pos != c.dest {
-                let v = (c.dest - c.current_pos).abs();
+        match self.state {
+            AnimState::In | AnimState::Out => {
+                let mut is_done = true;
 
-                if v.x > v.y {
-                    if c.current_pos.x > c.dest.x {
-                        c.current_pos.x -= 1;
+                let mut remove = Vec::new();
+                for (index, c) in &mut self.chars.iter_mut().enumerate() {
+                    if c.current_pos != c.dest {
+                        is_done = false;
+                        let v = (c.dest - c.current_pos).abs();
+
+                        if v.x > v.y {
+                            if c.current_pos.x > c.dest.x {
+                                c.current_pos.x -= 1;
+                            }
+                            if c.current_pos.x < c.dest.x {
+                                c.current_pos.x += 1;
+                            }
+                        } else {
+                            if c.current_pos.y > c.dest.y {
+                                c.current_pos.y -= 1;
+                            }
+                            if c.current_pos.y < c.dest.y {
+                                c.current_pos.y += 1;
+                            }
+                        }
+
+                        if c.current_pos == c.dest {
+                            remove.push(index);
+                        }
                     }
-                    if c.current_pos.x < c.dest.x {
-                        c.current_pos.x += 1;
-                    }
-                } else {
-                    if c.current_pos.y > c.dest.y {
-                        c.current_pos.y -= 1;
-                    }
-                    if c.current_pos.y < c.dest.y {
-                        c.current_pos.y += 1;
+                }
+
+                // Remove every char that has reached its destination,
+                // when animating out
+                if let AnimState::Out = self.state {
+                    remove.into_iter().rev().for_each(|i| { self.chars.remove(i); });
+                }
+
+                if is_done {
+                    match self.state {
+                        AnimState::In => self.state = AnimState::Wait,
+                        AnimState::Out => self.state = AnimState::Done,
+                        _ => unreachable!(),
                     }
                 }
             }
-        }
-
-        let mut is_done = true;
-
-        // super dodge
-        for c in &self.chars {
-            if c.dest != c.current_pos {
-                is_done = false;
+            AnimState::Wait => {
+                self.life -= 1;
+                if self.life == 0 {
+                    self.state = AnimState::Out;
+                    self.chars.iter_mut().for_each(|c| c.dest = c.start);
+                }
             }
-        }
-
-        if is_done {
-            self.life -= 1;
-        }
-
-        if !self.is_done && is_done && self.life == 0 {
-            self.is_done = true;
+            AnimState::Done => self.is_done = true,
         }
 
         self.chars.clone()

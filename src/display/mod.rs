@@ -104,7 +104,7 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
         // -----------------------------------------------------------------------------
         chat.update_and_draw();
         event_disp.update_and_draw();
-        window.nap(Duration::from_millis(50));
+        window.nap(Duration::from_millis(20));
     }
 }
 
