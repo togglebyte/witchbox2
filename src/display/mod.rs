@@ -47,7 +47,7 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
 
     let window = Window::main(true)?;
     window.set_cursor_visibility(Cursor::Hide)?;
-    window.no_delay(true);
+    window.no_delay(true)?;
 
     for c in 1..8 {
         if let Err(e) = Colors::init_fg(Color::from(c)) {
@@ -102,9 +102,9 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
         // -----------------------------------------------------------------------------
         //     - Update and draw -
         // -----------------------------------------------------------------------------
-        chat.update_and_draw();
-        event_disp.update_and_draw();
-        window.nap(Duration::from_millis(20));
+        chat.update_and_draw()?;
+        event_disp.update_and_draw()?;
+        window.nap(Duration::from_millis(20))?;
     }
 }
 
@@ -143,13 +143,14 @@ impl<T: DisplayHandler> Display<T> {
         self.buffer.clear();
     }
 
-    pub fn update_and_draw(&mut self) {
+    pub fn update_and_draw(&mut self) -> Result<()> {
         if self.buffer.is_dirty() {
-            self.window.erase();
+            self.window.erase()?;
         }
         let context = DisplayContext { colors: &mut self.colors, buffer: &mut self.buffer, window: &mut self.window };
-        self.handler.update(context);
-        self.draw();
+        self.handler.update(context)?;
+        self.draw()?;
+        Ok(())
     }
 
     pub fn input(&mut self, input: Input) -> Result<()> {
@@ -157,33 +158,35 @@ impl<T: DisplayHandler> Display<T> {
         self.handler.input(context, input)
     }
 
-    fn draw(&mut self) {
+    fn draw(&mut self) -> Result<()> {
         for line in self.buffer.lines() {
             let mut pos = self.window.get_cursor();
             for inst in line.instructions() {
                 match inst {
                     Instruction::Color(col) => {
                         let pair_id = Colors::get_color_pair(*col);
-                        self.window.set_color(pair_id);
+                        self.window.set_color(pair_id)?;
                     }
                     Instruction::Reset => {
                         let pair_id = Colors::get_color_pair(0u32);
-                        self.window.set_color(pair_id);
+                        self.window.set_color(pair_id)?;
                     }
                     Instruction::Line(line) => drop(self.window.print(line)),
                     Instruction::Pad(pad) => {
                         let mut pos = self.window.get_cursor();
                         pos.x += *pad as i32;
-                        self.window.move_cursor(pos);
+                        self.window.move_cursor(pos)?;
                     }
                 }
             }
             pos.y += 1;
             pos.x = 0;
-            self.window.move_cursor(pos);
+            self.window.move_cursor(pos)?;
         }
 
-        self.window.refresh();
+        self.window.refresh()?;
+
+        Ok(())
     }
 
     pub fn handle_message(&mut self, msg: &DisplayMessage) {
@@ -196,7 +199,7 @@ impl<T: DisplayHandler> Display<T> {
 //     - Display handler -
 // -----------------------------------------------------------------------------
 pub trait DisplayHandler {
-    fn update(&mut self, context: DisplayContext) {}
+    fn update(&mut self, context: DisplayContext) -> Result<()> { Ok(()) }
     fn input(&mut self, context: DisplayContext, input: Input) -> Result<()>;
     fn handle(&mut self, context: DisplayContext, msg: &DisplayMessage);
 }

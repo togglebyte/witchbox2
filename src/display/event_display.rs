@@ -21,7 +21,7 @@ impl EventDisplay {
         }
     }
 
-    fn next_frame(&mut self, window: &Window<Sub>) {
+    fn next_frame(&mut self, window: &Window<Sub>) -> Result<()>  {
         match self.current {
             Some(ref mut c) => {
                 let chars = c.update();
@@ -32,12 +32,12 @@ impl EventDisplay {
                 for c in chars {
                     let color_id: i16 = c.color.into();
                     let pair = Colors::get_color_pair(color_id as u32);
-                    window.set_color(pair);
-                    window.add_char_at(c.current_pos, c.c);
+                    window.set_color(pair)?;
+                    window.add_char_at(c.current_pos, c.c)?;
                 }
 
                 let reset = Colors::get_color_pair(0);
-                window.set_color(reset);
+                window.set_color(reset)?;
             }
             None => {
                 if let Some((next_anim, audio)) = self.queue.pop_front() {
@@ -46,6 +46,8 @@ impl EventDisplay {
                 }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -64,11 +66,12 @@ impl DisplayHandler for EventDisplay {
         self.queue.push_back((animation, None));
     }
 
-    fn update(&mut self, context: DisplayContext) {
-        context.window.erase();
+    fn update(&mut self, context: DisplayContext) -> Result<()> {
+        context.window.erase()?;
         let pair = Colors::get_color_pair(2);
-        context.window.set_color(pair);
+        context.window.set_color(pair)?;
         context.window.draw_box();
-        self.next_frame(context.window);
+        self.next_frame(context.window)?;
+        Ok(())
     }
 }

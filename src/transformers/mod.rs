@@ -49,7 +49,9 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
             Event::Chat(irc) => {
                 if let Some(irc) = filters.chat_filter.filter(irc) {
                     let message = transformers.chat.transform(irc);
-                    display_tx.send(DisplayMessage::Chat(message));
+                    if let Err(e) = display_tx.send(DisplayMessage::Chat(message)) {
+                        log::error!("Failed to send message to the display: {}", e);
+                    }
                 }
             }
             Event::ClearChat => drop(display_tx.send(DisplayMessage::ClearChat)),
@@ -57,7 +59,9 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
                 match twitch {
                     crate::twitch::Twitch::ChannelEvent(channel_event) => {
                         let message = transformers.channel_events.transform(channel_event);
-                        display_tx.send(DisplayMessage::ChannelPoints(message));
+                        if let Err(e) = display_tx.send(DisplayMessage::ChannelPoints(message)) {
+                            log::error!("Failed to send message to the display: {}", e);
+                        }
                     }
                     _ => unimplemented!(),
                 }

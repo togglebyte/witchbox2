@@ -1,6 +1,7 @@
 use tinyroute::client::{TcpClient, connect, ClientMessage};
 
 const HYDRATE: &str = r#"{"type":"MESSAGE","data":{"topic":"channel-points-channel-v1.474725923","message":"{\"type\":\"reward-redeemed\",\"data\":{\"timestamp\":\"2021-09-30T08:50:08.899176904Z\",\"redemption\":{\"id\":\"345b5658-6612-403c-b068-8ac45385e88b\",\"user\":{\"id\":\"474725923\",\"login\":\"togglebit\",\"display_name\":\"togglebit\"},\"channel_id\":\"474725923\",\"redeemed_at\":\"2021-09-30T08:50:08.899176904Z\",\"reward\":{\"id\":\"e5a41bd4-3c15-4f29-93df-8b597908c6f2\",\"channel_id\":\"474725923\",\"title\":\"hydrate! (maybe)\",\"prompt\":\"Make me take a sip of water\",\"cost\":100,\"is_user_input_required\":false,\"is_sub_only\":false,\"image\":{\"url_1x\":\"https://static-cdn.jtvnw.net/custom-reward-images/474725923/e5a41bd4-3c15-4f29-93df-8b597908c6f2/4c3adc08-e204-4699-ab5e-c117c659af4c/custom-1.png\",\"url_2x\":\"https://static-cdn.jtvnw.net/custom-reward-images/474725923/e5a41bd4-3c15-4f29-93df-8b597908c6f2/4c3adc08-e204-4699-ab5e-c117c659af4c/custom-2.png\",\"url_4x\":\"https://static-cdn.jtvnw.net/custom-reward-images/474725923/e5a41bd4-3c15-4f29-93df-8b597908c6f2/4c3adc08-e204-4699-ab5e-c117c659af4c/custom-4.png\"},\"default_image\":{\"url_1x\":\"https://static-cdn.jtvnw.net/custom-reward-images/tree-1.png\",\"url_2x\":\"https://static-cdn.jtvnw.net/custom-reward-images/tree-2.png\",\"url_4x\":\"https://static-cdn.jtvnw.net/custom-reward-images/tree-4.png\"},\"background_color\":\"D9B475\",\"is_enabled\":true,\"is_paused\":false,\"is_in_stock\":false,\"max_per_stream\":{\"is_enabled\":false,\"max_per_stream\":0},\"should_redemptions_skip_request_queue\":false,\"template_id\":\"template:41d5eae8-4deb-4541-b681-ebdcb3125c0f\",\"updated_for_indicator_at\":\"2020-08-17T14:18:40.599453034Z\",\"max_per_user_per_stream\":{\"is_enabled\":false,\"max_per_user_per_stream\":0},\"global_cooldown\":{\"is_enabled\":true,\"global_cooldown_seconds\":120},\"redemptions_redeemed_current_stream\":null,\"cooldown_expires_at\":\"2021-09-30T08:52:08Z\"},\"status\":\"UNFULFILLED\"}}}"}}"#;
+
 const ANON_GIFT_SUB: &str = r#"{"type":"MESSAGE","data":{"topic":"channel-subscribe-events
 -v1.474725923","message":"{\"benefit_end_month\":0,\"user_name\":\"ananonymousgifter\",\"display_name\":\"An Anonymous Gifter\"
 ,\"channel_name\":\"togglebit\",\"user_id\":\"274598607\",\"channel_id\":\"474725923\",\"recipient_id\":\"25269049\",\"recipien
@@ -25,6 +26,16 @@ pub async fn hydrate() {
 
 pub async fn bits() {
     let bytes = BITS.as_bytes();
+    send_test(bytes).await;
+}
+
+pub async fn gift_sub() {
+    let bytes = GIFT_SUB.as_bytes();
+    send_test(bytes).await;
+}
+
+pub async fn anon_gift_sub() {
+    let bytes = ANON_GIFT_SUB.as_bytes();
     send_test(bytes).await;
 }
 

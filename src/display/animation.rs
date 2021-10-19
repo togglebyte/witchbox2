@@ -6,7 +6,7 @@ fn random_color() -> Color {
     const COLORS: [Color; 7] = [Color::Red, Color::Green, Color::Yellow, Color::Blue, Color::Magenta, Color::Cyan, Color::White];
 
     let mut rng = thread_rng();
-    *COLORS.choose(&mut rng).unwrap()
+    *COLORS.choose(&mut rng).expect("this really shouldn't fail")
 }
 
 #[derive(Debug, Copy, Clone)]
