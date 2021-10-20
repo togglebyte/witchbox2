@@ -1,5 +1,3 @@
-use std::sync::mpsc;
-
 use neotwitch::{ChannelPoints, FollowEvent, Irc, IrcMessage, SubscribeEvent};
 
 // mod sound_player;
@@ -52,7 +50,9 @@ async fn main() {
 
     let mut args = std::env::args().skip(1);
 
-    if let Some(s) = args.next() {
+    let mut ret = false;
+    while let Some(s) = args.next() {
+        ret = true;
         match s.as_ref() {
             "hydrate" => testdata::hydrate().await,
             "bits" => testdata::bits().await,
@@ -60,6 +60,9 @@ async fn main() {
             "anongiftsub" => testdata::anon_gift_sub().await,
             _ => {}
         }
+    }
+
+    if ret {
         return;
     }
 

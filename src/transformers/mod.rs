@@ -30,11 +30,13 @@ mod chat;
 mod chatfilter;
 mod filters;
 mod channel_events;
+mod sub;
 
 use channel_events::ChannelPointsTransformer;
 use chat::IrcTransformer;
 use chatfilter::ChatFilter;
 use filters::Filters;
+use sub::SubTransformer;
 
 pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
     let mut transformers = Transformers::new();
@@ -63,6 +65,13 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
                             log::error!("Failed to send message to the display: {}", e);
                         }
                     }
+                    crate::twitch::Twitch::Sub(sub) => {
+                        if let Some(sub) = transformers.subs.transform(sub) {
+                            if let Err(e) = display_tx.send(DisplayMessage::Sub(sub)) {
+                                log::error!("Failed to send message to the display: {}", e);
+                            }
+                        }
+                    }
                     _ => unimplemented!(),
                 }
             }
@@ -74,6 +83,7 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
 pub struct Transformers {
     chat: IrcTransformer,
     channel_events: ChannelPointsTransformer,
+    subs: SubTransformer,
 }
 
 impl Transformers {
@@ -81,6 +91,7 @@ impl Transformers {
         Self { 
             chat: IrcTransformer::new(),
             channel_events: ChannelPointsTransformer::new(),
+            subs: SubTransformer::new(),
         }
     }
 }

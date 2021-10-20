@@ -1,5 +1,4 @@
-use crate::Event;
-use anathema::{Colors, Input, Line, ScrollBuffer, Sub, Window};
+use anathema::Input;
 use anyhow::Result;
 
 use super::models::DisplayMessage;

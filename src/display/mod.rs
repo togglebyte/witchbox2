@@ -7,16 +7,19 @@ use anyhow::Result;
 mod animation;
 mod chat_display;
 mod event_display;
+mod fullscreen_display;
 pub mod models;
 
 use chat_display::ChatDisplay;
 use event_display::EventDisplay;
-use models::{ChatMessage, DisplayMessage};
+use fullscreen_display::FullscreenDisplay;
+use models::DisplayMessage;
 
 pub type DisplayEventRx = mpsc::Receiver<models::DisplayMessage>;
 pub type DisplayEventTx = mpsc::Sender<models::DisplayMessage>;
 
-const EVENT_HEIGHT: i32 = 7;
+const EVENT_HEIGHT: i32 = 10;
+const NAP_TIME: u64 = 20;
 
 pub fn channel() -> (DisplayEventTx, DisplayEventRx) {
     mpsc::channel()
@@ -41,10 +44,6 @@ pub fn sizes(total: Size) -> (Size, Size) {
 }
 
 pub fn run(events: DisplayEventRx) -> Result<()> {
-    // * Create window
-    // * Setup colours
-    // * Create an event buffer (store N events)
-
     let window = Window::main(true)?;
     window.set_cursor_visibility(Cursor::Hide)?;
     window.no_delay(true)?;
@@ -60,16 +59,19 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
     let chat_win = window.new_window(Pos::new(0, event_size.height), chat_size)?;
     let mut chat = Display::new(chat_win, ChatDisplay);
     let mut event_disp = Display::new(event_win, EventDisplay::new());
+    let fullscreen_win = window.new_window(Pos::new(0, 0), window.size())?;
+    let mut fullscreen = Display::new(fullscreen_win, FullscreenDisplay::new());
 
     let mut event_buffer = Vec::with_capacity(1024);
 
     loop {
-        // -----------------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         //     - Incoming events -
-        // -----------------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         while let Ok(event) = events.try_recv() {
             chat.handle_message(&event);
             event_disp.handle_message(&event);
+            fullscreen.handle_message(&event);
 
             // Stay under capacity
             if event_buffer.len() == event_buffer.capacity() {
@@ -78,33 +80,44 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
             event_buffer.push(event);
         }
 
-        // -----------------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         //     - Input handling -
-        // -----------------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         if let Some(key) = window.get_input() {
             chat.input(key)?;
             event_disp.input(key)?;
+            fullscreen.input(key)?;
 
             match key {
                 Input::Character('c') => break Ok(()),
                 Input::KeyResize => {
-                    let new_size = window.size();
+                    // ---------------------------------------------------------
+                    //     - Resize all windows -
+                    // ---------------------------------------------------------
                     let (event_size, chat_size) = sizes(window.size());
-                    let event_win = window.new_window(Pos::new(0, 0), event_size)?;
+                    let event_win = window.new_window(Pos::zero(), event_size)?;
                     let chat_win = window.new_window(Pos::new(0, event_size.height), chat_size)?;
+                    let fullscreen_win = window.new_window(Pos::zero(), window.size())?;
                     chat.reset_window(chat_win);
                     event_disp.reset_window(event_win);
+                    fullscreen.reset_window(fullscreen_win);
                 }
                 _ => {}
             }
         }
 
-        // -----------------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         //     - Update and draw -
-        // -----------------------------------------------------------------------------
+        // ---------------------------------------------------------------------
+        while fullscreen.handler.wants_update() && !event_disp.handler.wants_update() {
+            fullscreen.update_and_draw()?;
+            window.nap(Duration::from_millis(NAP_TIME))?;
+        }
+
         chat.update_and_draw()?;
         event_disp.update_and_draw()?;
-        window.nap(Duration::from_millis(20))?;
+
+        window.nap(Duration::from_millis(NAP_TIME))?;
     }
 }
 
@@ -149,7 +162,7 @@ impl<T: DisplayHandler> Display<T> {
         }
         let context = DisplayContext { colors: &mut self.colors, buffer: &mut self.buffer, window: &mut self.window };
         self.handler.update(context)?;
-        self.draw()?;
+        self.draw_instructions()?;
         Ok(())
     }
 
@@ -158,7 +171,7 @@ impl<T: DisplayHandler> Display<T> {
         self.handler.input(context, input)
     }
 
-    fn draw(&mut self) -> Result<()> {
+    fn draw_instructions(&mut self) -> Result<()> {
         for line in self.buffer.lines() {
             let mut pos = self.window.get_cursor();
             for inst in line.instructions() {
@@ -198,8 +211,18 @@ impl<T: DisplayHandler> Display<T> {
 // -----------------------------------------------------------------------------
 //     - Display handler -
 // -----------------------------------------------------------------------------
-pub trait DisplayHandler {
-    fn update(&mut self, context: DisplayContext) -> Result<()> { Ok(()) }
+trait DisplayHandler {
+    fn update(&mut self, _: DisplayContext) -> Result<()> { Ok(()) }
     fn input(&mut self, context: DisplayContext, input: Input) -> Result<()>;
     fn handle(&mut self, context: DisplayContext, msg: &DisplayMessage);
+}
+
+// -----------------------------------------------------------------------------
+//     - Display state -
+// -----------------------------------------------------------------------------
+#[derive(Debug, Copy, Clone)]
+enum DisplayState {
+    AnimatingFullscreen,
+    AnimatingEvents,
+    ShowingChat
 }

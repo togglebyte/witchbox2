@@ -32,6 +32,7 @@ pub async fn bits() {
 pub async fn gift_sub() {
     let bytes = GIFT_SUB.as_bytes();
     send_test(bytes).await;
+    // tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 }
 
 pub async fn anon_gift_sub() {
@@ -41,7 +42,7 @@ pub async fn anon_gift_sub() {
 
 async fn send_test(bytes: &[u8]) {
     let tcp_client = TcpClient::connect("127.0.0.1:6000").await.unwrap();
-    let (tx, rx) = connect(tcp_client, None);
+    let (tx, _rx) = connect(tcp_client, None);
 
-    let res = tx.send(ClientMessage::channel_payload(b"cpoints", bytes)); 
+    let _ = tx.send(ClientMessage::channel_payload(b"cpoints", bytes)); 
 }

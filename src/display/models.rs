@@ -4,6 +4,7 @@ pub enum DisplayMessage {
     Chat(ChatMessage),
     ClearChat,
     ChannelPoints(ChannelPointsMessage),
+    Sub(Subscription),
 }
 
 // -----------------------------------------------------------------------------
@@ -41,4 +42,11 @@ impl ChatMessage {
 pub struct ChannelPointsMessage {
     pub user: String,
     pub title: String,
+}
+
+#[derive(Debug)]
+pub struct Subscription {
+    pub gift: bool,
+    pub gifter: Option<String>,
+    pub recipients: Vec<String>,
 }
