@@ -8,19 +8,24 @@ pub struct ChatDisplay;
 
 impl DisplayHandler for ChatDisplay {
     fn handle(&mut self, context: DisplayContext, msg: &DisplayMessage) {
-        let msg = match msg {
-            DisplayMessage::Chat(m) => m,
-            DisplayMessage::ClearChat => {
-                context.buffer.clear();
-                return;
+        match msg {
+            DisplayMessage::Chat(msg) => {
+                let lines = msg.to_lines(context.colors, context.window.size().width as usize);
+                lines
+                    .into_iter()
+                    .for_each(|line| context.buffer.push(line));
+            },
+            DisplayMessage::ChatEvent(ev) => {
+                let lines = ev.to_lines(context.window.size().width as usize);
+                lines
+                    .into_iter()
+                    .for_each(|line| context.buffer.push(line));
             }
-            _ => return,
+            DisplayMessage::ClearChat => context.buffer.clear(),
+            DisplayMessage::Sub(_)
+            | DisplayMessage::ChannelPoints(_) => {}
         };
 
-        let lines = msg.to_lines(context.colors, context.window.size().width as usize);
-        lines
-            .into_iter()
-            .for_each(|line| context.buffer.push(line));
     }
 
 

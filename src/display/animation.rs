@@ -2,17 +2,12 @@ use std::fs::read_to_string;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use anathema::{split, Color, Instruction, Line, Pos, Size};
 use rand::prelude::*;
+use anathema::{split, Color, Instruction, Line, Pos, Size};
 use unicode_width::UnicodeWidthStr;
 
-fn random_color() -> Color {
-    const COLORS: [Color; 7] =
-        [Color::Red, Color::Green, Color::Yellow, Color::Blue, Color::Magenta, Color::Cyan, Color::White];
+use crate::display::random_color;
 
-    let mut rng = thread_rng();
-    *COLORS.choose(&mut rng).expect("this really shouldn't fail")
-}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Char {
@@ -111,7 +106,9 @@ impl CharAnim {
 
                 if is_done {
                     match self.state {
-                        AnimState::In => self.state = AnimState::Wait(Instant::now()),
+                        AnimState::In => {
+                            self.state = AnimState::Wait(Instant::now());
+                        }
                         AnimState::Out => self.state = AnimState::Done,
                         _ => unreachable!(),
                     }
@@ -123,7 +120,9 @@ impl CharAnim {
                     self.chars.iter_mut().for_each(|c| c.dest = c.start);
                 }
             }
-            AnimState::Done => self.is_done = true,
+            AnimState::Done => {
+                self.is_done = true;
+            }
         }
 
         self.chars.clone()
@@ -139,7 +138,6 @@ enum FrameAnimState {
 }
 
 pub struct FrameAnim {
-    lines_per_frame: usize,
     frame_padding: usize,
     frames: Vec<Frame>,
     current_frame: usize,
@@ -173,7 +171,6 @@ impl FrameAnim {
             .collect();
 
         Self {
-            lines_per_frame,
             frame_padding,
             frames,
             current_frame: 0,

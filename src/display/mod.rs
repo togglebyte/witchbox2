@@ -1,6 +1,8 @@
 use std::sync::mpsc;
 use std::time::Duration;
 
+use rodio::OutputStream;
+use rand::prelude::*;
 use anathema::{Color, Colors, Cursor, Input, Instruction, Line, Pos, ScrollBuffer, Size, Sub, Window};
 use anyhow::Result;
 
@@ -19,11 +21,36 @@ pub type DisplayEventRx = mpsc::Receiver<models::DisplayMessage>;
 pub type DisplayEventTx = mpsc::Sender<models::DisplayMessage>;
 
 const EVENT_HEIGHT: i32 = 10;
-const NAP_TIME: u64 = 20;
+const NAP_TIME: u64 = 25;
+
+pub const GREY: Color = Color::Id(80);
 
 pub fn channel() -> (DisplayEventTx, DisplayEventRx) {
     mpsc::channel()
 }
+
+// -----------------------------------------------------------------------------
+//     - Setup colours -
+// -----------------------------------------------------------------------------
+fn setup_colors() {
+    // Base colours
+    for c in 1..8 {
+        if let Err(e) = Colors::init_fg(Color::from(c)) {
+            log::error!("Failed to init colour {}: {}", c, e);
+        }
+    }
+
+    Colors::init_color(GREY.into(), 400, 400, 400).unwrap();
+}
+
+pub fn random_color() -> Color {
+    const COLORS: [Color; 7] =
+        [Color::Red, Color::Green, Color::Yellow, Color::Blue, Color::Magenta, Color::Cyan, Color::White];
+
+    let mut rng = thread_rng();
+    *COLORS.choose(&mut rng).expect("this really shouldn't fail")
+}
+
 
 // Get the sizes for the event view and the chat view.
 // If there isn't enough space for the events, set the size to
@@ -47,20 +74,17 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
     let window = Window::main(true)?;
     window.set_cursor_visibility(Cursor::Hide)?;
     window.no_delay(true)?;
+    setup_colors();
 
-    for c in 1..8 {
-        if let Err(e) = Colors::init_fg(Color::from(c)) {
-            log::error!("Failed to init colour {}: {}", c, e);
-        }
-    }
+    let (_stream, sound_output_handle) = OutputStream::try_default()?;
 
     let (event_size, chat_size) = sizes(window.size());
     let event_win = window.new_window(Pos::new(0, 0), event_size)?;
     let chat_win = window.new_window(Pos::new(0, event_size.height), chat_size)?;
     let mut chat = Display::new(chat_win, ChatDisplay);
-    let mut event_disp = Display::new(event_win, EventDisplay::new());
+    let mut event_disp = Display::new(event_win, EventDisplay::new(sound_output_handle.clone()));
     let fullscreen_win = window.new_window(Pos::new(0, 0), window.size())?;
-    let mut fullscreen = Display::new(fullscreen_win, FullscreenDisplay::new());
+    let mut fullscreen = Display::new(fullscreen_win, FullscreenDisplay::new(sound_output_handle));
 
     let mut event_buffer = Vec::with_capacity(1024);
 
@@ -109,9 +133,11 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
         // ---------------------------------------------------------------------
         //     - Update and draw -
         // ---------------------------------------------------------------------
+
         while fullscreen.handler.wants_update() && !event_disp.handler.wants_update() {
             fullscreen.update_and_draw()?;
             window.nap(Duration::from_millis(NAP_TIME))?;
+            chat.buffer.touch();
         }
 
         chat.update_and_draw()?;
@@ -143,17 +169,13 @@ struct Display<T> {
 impl<T: DisplayHandler> Display<T> {
     pub fn new(window: Window<Sub>, handler: T) -> Self {
         let height = window.size().height as usize;
-        let colors = Colors::new();
+        let colors = Colors::new(100);
         Self { window, buffer: ScrollBuffer::new(height, 1024), handler, colors }
     }
 
     pub fn reset_window(&mut self, window: Window<Sub>) {
         self.window = window;
         self.buffer.resize(self.window.size().height as usize);
-    }
-
-    pub fn clear(&mut self) {
-        self.buffer.clear();
     }
 
     pub fn update_and_draw(&mut self) -> Result<()> {
@@ -173,7 +195,6 @@ impl<T: DisplayHandler> Display<T> {
 
     fn draw_instructions(&mut self) -> Result<()> {
         for line in self.buffer.lines() {
-            let mut pos = self.window.get_cursor();
             for inst in line.instructions() {
                 match inst {
                     Instruction::Color(col) => {
@@ -192,9 +213,14 @@ impl<T: DisplayHandler> Display<T> {
                     }
                 }
             }
-            pos.y += 1;
-            pos.x = 0;
-            self.window.move_cursor(pos)?;
+
+            if line.width() < self.window.size().width as usize {
+                self.window.add_char('\n')?;
+            }
+
+            // pos.y += 1;
+            // pos.x = 0;
+            // self.window.move_cursor(pos)?;
         }
 
         self.window.refresh()?;
@@ -215,14 +241,4 @@ trait DisplayHandler {
     fn update(&mut self, _: DisplayContext) -> Result<()> { Ok(()) }
     fn input(&mut self, context: DisplayContext, input: Input) -> Result<()>;
     fn handle(&mut self, context: DisplayContext, msg: &DisplayMessage);
-}
-
-// -----------------------------------------------------------------------------
-//     - Display state -
-// -----------------------------------------------------------------------------
-#[derive(Debug, Copy, Clone)]
-enum DisplayState {
-    AnimatingFullscreen,
-    AnimatingEvents,
-    ShowingChat
 }
