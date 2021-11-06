@@ -17,7 +17,7 @@ impl SubTransformer {
         }
     }
 
-    pub fn transform(&mut self, mut sub: SubscribeEvent) {
+    pub fn transform(&mut self, sub: SubscribeEvent) {
         let updated_existing = self.subs
             .iter_mut()
             .filter(|(_, s)| s.gifter == sub.display_name && s.gift)

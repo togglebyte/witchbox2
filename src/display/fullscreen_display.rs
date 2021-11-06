@@ -39,7 +39,7 @@ impl FullscreenDisplay {
     fn next_frame(&mut self, window: &Window<Sub>, buffer: &mut ScrollBuffer<Line>) -> Result<()> {
         match &mut self.current {
             Some((frame, text)) => {
-                let lines = frame.update();
+                let mut lines = frame.update();
                 // let chars = text.update();
 
                 // // Draw the text first.
@@ -60,7 +60,7 @@ impl FullscreenDisplay {
                 window.move_cursor(Pos::new(0, y - 1))?;
 
                 buffer.clear();
-                for line in lines {
+                for line in lines.drain() {
                     buffer.push(line);
                 }
 
@@ -95,11 +95,16 @@ impl DisplayHandler for FullscreenDisplay {
         Ok(())
     }
 
+    fn rebuild(&mut self, context: DisplayContext) -> Result<()> {
+        Ok(())
+    }
+
     fn handle(&mut self, context: DisplayContext, msg: &DisplayMessage) {
         let sub = match msg {
             DisplayMessage::Sub(sub) => sub,
             DisplayMessage::ChannelPoints(_)
             | DisplayMessage::Chat(_)
+            | DisplayMessage::TodoUpdate(_)
             | DisplayMessage::ChatEvent(_)
             | DisplayMessage::ClearChat => return,
         };
@@ -108,8 +113,8 @@ impl DisplayHandler for FullscreenDisplay {
         self.sound_player = Some(SoundPlayer::new(sound, self.output_handle.clone()));
         let width = context.window.size().width - 2;
         let height = 4;
-        let animation = FrameAnim::new("animations/test.txt", width as usize);
-        let char_anim = CharAnim::new("Flobberlobber gifted 12 subs to: barbo, flappy, globby, jesterwithascepter, kingflorp, gnats, bbgun, bantspants, yourmum, omglol, feffy", Size::new(width, height));
+        let animation = FrameAnim::new("animations/bender.txt", width as usize);
+        let char_anim = CharAnim::new("Not implemented yet", Size::new(width, height));
         self.queue.push_back((animation, char_anim));
     }
 }

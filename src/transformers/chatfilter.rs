@@ -10,6 +10,10 @@ impl ChatFilter {
     }
 
     pub fn filter(&mut self, message: IrcMessage) -> Option<IrcMessage> {
+        if message.nick == "pretzelrocks" {
+            return None;
+        }
+
         Some(message)
     }
 }

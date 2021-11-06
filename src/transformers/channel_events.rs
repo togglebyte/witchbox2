@@ -1,5 +1,6 @@
 use neotwitch::ChannelPoints;
 use crate::display::models::{ChannelPointsMessage, DisplayMessage, ChatEvent};
+use crate::audio::default_sound;
 
 pub struct ChannelPointsTransformer {
 }
@@ -15,6 +16,7 @@ impl ChannelPointsTransformer {
             "hydrate! (maybe)" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
                 user: chan_points.user.display_name,
                 title: chan_points.reward.title,
+                sound_path: Some(default_sound()),
             })),
             // "random quote" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
             //     user: chan_points.user.display_name,
@@ -36,7 +38,7 @@ impl ChannelPointsTransformer {
             //     user: chan_points.user.display_name,
             //     title: chan_points.reward.title,
             // })),
-            "Work on: Terminal Social Network" => Some(DisplayMessage::ChatEvent(ChatEvent::new("Work on o-slash".into()))),
+            "Work on: Terminal Social Network" => Some(DisplayMessage::ChatEvent(ChatEvent("Work on o-slash".into()))),
 
             _ => { 
                 log::warn!("Unknown channel event: {}", chan_points.reward.title);

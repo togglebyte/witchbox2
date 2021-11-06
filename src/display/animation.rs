@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use rand::prelude::*;
-use anathema::{split, Color, Instruction, Line, Pos, Size};
+use anathema::{split, Color, Instruction, Lines, Line, Pos, Size};
 use unicode_width::UnicodeWidthStr;
 
 use crate::display::random_color;
@@ -35,27 +35,51 @@ pub struct CharAnim {
     state: AnimState,
 }
 
-impl CharAnim {
-    pub fn new(words: &str, size: Size) -> Self {
-        let lines = split(words, size.width as usize, 0);
-        let mut chars = Vec::new();
+pub enum Animation {
+    Scatter,
+    HorzSlide,
+    VertSlide,
+}
 
-        let dest_y = size.height / 2 - lines.len() as i32 / 2;
-        let longest_line = lines.iter().map(|l| l.width()).max().unwrap_or(1) as i32;
-        let dest_x = size.width / 2 - longest_line / 2;
-        for (y, line) in lines.into_iter().enumerate() {
-            for (x, c) in line.chars().enumerate() {
-                let mut rng = thread_rng();
-                let start = Pos::new(rng.gen_range(0..size.width), 1);
-                chars.push(Char {
-                    dest: Pos::new(x as i32 + dest_x, y as i32 + dest_y),
-                    current_pos: start,
-                    start,
-                    c,
-                    color: random_color(),
-                });
-            }
+fn animation_chars(lines: Vec<&str>, size: Size, animation: Animation) -> Vec<Char> {
+    let mut chars = vec![];
+    let dest_y = size.height / 2 - lines.len() as i32 / 2;
+    let longest_line = lines.iter().map(|l| l.width()).max().unwrap_or(1) as i32;
+    let dest_x = size.width / 2 - longest_line / 2;
+
+    let line_count = lines.len() as i32;
+    let color = random_color();
+
+    for (y, line) in lines.into_iter().enumerate() {
+        for (x, c) in line.chars().filter(|c| *c != '\n').enumerate() {
+            let x = x as i32;
+            let y = y as i32;
+            let mut rng = thread_rng();
+
+            let start = match animation {
+                Animation::Scatter => Pos::new(rng.gen_range(0..size.width), 1),
+                Animation::HorzSlide => Pos::new(x + size.width, y + dest_y),
+                Animation::VertSlide => Pos::new(x + dest_x, y + size.height),
+            };
+
+            chars.push(Char {
+                dest: Pos::new(x as i32 + dest_x, y as i32 + dest_y),
+                current_pos: start,
+                start,
+                c,
+                color,
+            });
         }
+    }
+
+    chars
+}
+
+impl CharAnim {
+    pub fn new(words: &str, size: Size, animation: Animation) -> Self {
+        let lines = split(words, size.width as usize, 0, true).collect::<Vec<_>>();
+
+        let mut chars = animation_chars(lines, size, animation);
 
         let wpm = words.split_whitespace().count() as f32 * 0.25 + 3.0;
 
@@ -181,7 +205,7 @@ impl FrameAnim {
         }
     }
 
-    pub fn update(&mut self) -> Vec<Line> {
+    pub fn update(&mut self) -> Lines {
         let started = match self.state {
             FrameAnimState::NotStarted => {
                 let started = Instant::now();
@@ -191,7 +215,7 @@ impl FrameAnim {
             FrameAnimState::Playing(started) => started,
         };
 
-        let mut lines = Vec::new();
+        let mut lines = Lines::new(self.screen_width);
 
         if started.elapsed() > self.ttl {
             self.is_done = true;
@@ -199,17 +223,18 @@ impl FrameAnim {
         }
 
         for frame_line in &self.frames[self.current_frame].lines {
-            let mut line = Line::new();
-            line.push(Instruction::Pad(1)); // pad one to avoid drawing over the border
+            lines.pad(1); // pad one to avoid drawing over the border
+            // let mut line = Line::new();
+
+            // line.pad(1); // pad one to avoid drawing over the border
             if self.frame_padding > 0 {
-                line.push(Instruction::Pad(self.frame_padding));
+                lines.pad(self.frame_padding);
             }
 
             match frame_line.width() > self.screen_width {
-                true => line.push(Instruction::Line(frame_line[..self.screen_width].to_string())),
-                false => line.push(Instruction::Line(frame_line.clone())),
+                true => lines.push_str(&frame_line[..self.screen_width], true),
+                false => lines.push_str(frame_line, true),
             }
-            lines.push(line);
         }
 
         self.current_frame += 1;

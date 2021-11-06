@@ -28,18 +28,21 @@ use tokio::time;
 use crate::display::models::DisplayMessage;
 use crate::display::DisplayEventTx;
 use crate::{Event, EventReceiver};
+use crate::audio::random_follow;
 
 mod channel_events;
 mod chat;
 mod chatfilter;
 mod filters;
 mod sub;
+mod follow;
 
 use channel_events::ChannelPointsTransformer;
 use chat::IrcTransformer;
 use chatfilter::ChatFilter;
 use filters::Filters;
 use sub::SubTransformer;
+use follow::FollowTransformer;
 
 pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
     let mut transformers = Transformers::new();
@@ -59,6 +62,11 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
                         log::error!("Failed to send sub to the display: {}", e);
                     }
                 }
+                if let Some(follows) = transformers.follow.outstanding() {
+                    if let Err(e) = display_tx.send(DisplayMessage::Follow(follows, random_follow())) {
+                        log::error!("Failed to send follows to the display: {}", e);
+                    }
+                }
             }
             event = event_rx.recv() => {
                 if let Some(event) = event {
@@ -66,7 +74,7 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
                         Event::Chat(irc) => {
                             if let Some(irc) = filters.chat_filter.filter(irc) {
                                 let message = transformers.chat.transform(irc);
-                                if let Err(e) = display_tx.send(DisplayMessage::Chat(message)) {
+                                if let Err(e) = display_tx.send(message) {
                                     log::error!("Failed to send message to the display: {}", e);
                                 }
                             }
@@ -81,10 +89,9 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
                                         }
                                     }
                                 }
-                                crate::twitch::Twitch::Sub(sub) => {
-                                    transformers.subs.transform(sub);
-                                }
-                                _ => unimplemented!(),
+                                crate::twitch::Twitch::Sub(sub) => transformers.subs.transform(sub),
+                                crate::twitch::Twitch::Follow(follow) => transformers.follow.transform(follow),
+                                _ => {} //unimplemented!(),
                             }
                         }
                         _ => {}
@@ -99,6 +106,7 @@ pub struct Transformers {
     chat: IrcTransformer,
     channel_events: ChannelPointsTransformer,
     subs: SubTransformer,
+    follow: FollowTransformer,
 }
 
 impl Transformers {
@@ -107,6 +115,7 @@ impl Transformers {
             chat: IrcTransformer::new(),
             channel_events: ChannelPointsTransformer::new(),
             subs: SubTransformer::new(),
+            follow: FollowTransformer::new(),
         }
     }
 }

@@ -1,10 +1,13 @@
+use std::thread;
+
 use neotwitch::{ChannelPoints, FollowEvent, Irc, IrcMessage, SubscribeEvent};
 
-mod sound_player;
+mod audio;
 mod transformers;
 mod twitch;
 mod display;
 mod testdata;
+mod todo;
 
 pub type EventSender = tokio::sync::mpsc::Sender<Event>;
 pub type EventReceiver = tokio::sync::mpsc::Receiver<Event>;
@@ -59,6 +62,9 @@ async fn main() {
             "giftsub" => testdata::gift_sub().await,
             "anongiftsub" => testdata::anon_gift_sub().await,
             "oslash" => testdata::oslash().await,
+            "follow" => testdata::follow().await,
+            "chat" => testdata::chat().await,
+            "action" => testdata::action().await,
             _ => {}
         }
     }
@@ -70,13 +76,31 @@ async fn main() {
     let (tx, rx) = tokio::sync::mpsc::channel(100);
     let (display_tx, display_rx) = display::channel();
 
-    tokio::spawn(transformers::run(rx, display_tx));
+    tokio::spawn(transformers::run(rx, display_tx.clone()));
+    tokio::spawn(todo::watch_todo(display_tx, "/home/togglebit/wiki/todo.md"));
     tokio::spawn(twitch::start(tx.clone()));
 
     if let Err(e) = display::run(display_rx) {
         eprintln!("Fail: {}", e);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //     let mut orig_messages = vec![
 //          Entry { color: Some(random_color_string()), nick: "suuuuperlonglurpdjjrpsomekindoflinenamethatisreallyinconvenientbutitsgoingtobeherefornowsoicantestthis".into(),    message: "4 first blah blah".into() },

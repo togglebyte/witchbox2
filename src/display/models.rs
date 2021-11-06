@@ -1,83 +1,56 @@
+use neotwitch::IrcMessage;
 use anathema::{Colors, Line, Lines, Instruction};
 use crate::display::random_color;
 
+#[derive(Debug, Clone)]
 pub enum DisplayMessage {
     Chat(ChatMessage),
     ChatEvent(ChatEvent),
     ClearChat,
     ChannelPoints(ChannelPointsMessage),
+    TodoUpdate(String),
     Sub(Subscription),
+    Follow(Vec<Follow>, String),
 }
+
+#[derive(Debug, Clone)]
+pub struct Follow(pub String);
 
 // -----------------------------------------------------------------------------
 //     - Models -
 // -----------------------------------------------------------------------------
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChatMessage {
     pub nick: String,
     pub timestamp: String,
     pub message: String,
     pub color: Option<String>,
+    pub action: bool,
 }
 
-impl ChatMessage {
-    pub fn to_lines(&self, colors: &mut Colors, width: usize) -> Vec<Line> {
-        let mut lines = Lines::new(width);
-
-        if let Ok(col) = Colors::init_fg(crate::display::GREY) {
-            lines.push(Instruction::Color(col));
+impl From<IrcMessage> for ChatMessage {
+    fn from(mut irc: IrcMessage) -> Self {
+        Self {
+            nick: irc.nick,
+            message: irc.message,
+            color: irc.tags.remove("color"),
+            timestamp: irc.timestamp.format("%H:%M:%S").to_string(),
+            action: irc.action,
         }
-        lines.push_str(&self.timestamp);
-
-        if let Some(ref col) = self.color {
-            let res = colors.from_hex(col).and_then(Colors::init_fg);
-            if let Ok(col) = res {
-                lines.push(Instruction::Color(col));
-            }
-        }
-
-        lines.push_str(&self.nick);
-        lines.push(Instruction::Reset);
-
-        lines.push(Instruction::Pad(1));
-
-        lines.push_str(&self.message);
-        lines.complete()
     }
 }
 
-pub struct ChatEvent(String);
+#[derive(Debug, Clone)]
+pub struct ChatEvent(pub String);
 
-impl ChatEvent {
-    pub fn new(ev: String) -> Self {
-        Self(ev)
-    }
-
-    pub fn to_lines(&self, width: usize) -> Vec<Line> {
-        let mut lines = Lines::new(width);
-
-        // Get a random colour
-        let color = random_color();
-
-        if let Ok(col) = Colors::init_fg(color) {
-            lines.push(Instruction::Color(col));
-        }
-
-        lines.push_str(&format!("{:─>width$}", "─", width=width));
-        lines.push_str(&format!("{:<width$}", self.0, width=width));
-        lines.push_str(&format!("{:─>width$}", "─", width=width));
-        lines.push(Instruction::Reset);
-        lines.complete()
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChannelPointsMessage {
     pub user: String,
     pub title: String,
+    pub sound_path: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Subscription {
     pub gift: bool,
     pub gifter: Option<String>,
@@ -87,7 +60,7 @@ pub struct Subscription {
     pub sub_type: SubType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Tier {
     Prime,
     One,
@@ -114,7 +87,7 @@ impl Tier {
 // * anonsubgift
 // * resubgift
 // * anonresubgift
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SubType {
     NewSub,
     Resub,
