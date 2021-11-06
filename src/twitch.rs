@@ -9,6 +9,7 @@ use log::error;
 
 const MAX_RETRIES: usize = 500;
 
+#[derive(Debug)]
 pub enum Twitch {
     Bits(BitsEvent),
     ChannelEvent(ChannelPoints),
@@ -86,34 +87,6 @@ async fn run(tx: crate::EventSender, client: TcpClient) -> Result<()> {
                         }
                         "channel-subscribe-events-v1" => {
                             let sub = serde_json::from_str::<SubscribeEvent>(&twitch_msg.message).expect("yay");
-                            // {
-                            //     Err(e) => {
-                            //         // tl_error!(agent, Address, "Failed to serialize data: {}", e);
-                            //         continue;
-                            //     }
-                            //     Ok(sub) => sub,
-                            // };
-
-                            // let ui_data = models::Subscription {
-                            //     display_name: data
-                            //         .display_name
-                            //         .unwrap_or("".to_string()),
-                            //     sub_plan: data.sub_plan,
-                            //     cumulative_months: data
-                            //         .cumulative_months
-                            //         .unwrap_or(0),
-                            //     streak_months: data.streak_months.unwrap_or(0),
-                            //     context: data.context,
-                            //     is_gift: data.is_gift,
-                            //     recipient_display_name: data
-                            //         .recipient_display_name
-                            //         .unwrap_or("".to_string()),
-                            //     months: data.months.unwrap_or(0),
-                            //     multi_month_duration: data
-                            //         .multi_month_duration
-                            //         .unwrap_or(0),
-                            //     sub_message: data.sub_message.message,
-                            // };
                             let _ = tx.send(crate::Event::from_sub(sub).into()).await;
                         }
                         _ => {}

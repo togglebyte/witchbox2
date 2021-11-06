@@ -94,8 +94,8 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
         // ---------------------------------------------------------------------
         while let Ok(event) = events.try_recv() {
             chat.handle(&event);
-            event_disp.handle(&event);
-            fullscreen.handle(&event);
+            event_disp.handle(&event)?;
+            fullscreen.handle(&event)?;
         }
 
         // ---------------------------------------------------------------------
@@ -162,7 +162,7 @@ fn render_lines(lines: Lines<'_>, window: &Window<Sub>, offset: usize) -> Result
                     // So instead we ignore the error that will arise when printing a
                     // character in the last column on the last line.
                     if s.width() as i32 + cur.x >= size.width && cur.y + 1 == size.height {
-                        window.print(s);
+                        window.print(s)?;
                     } else {
                         window.print(s)?;
                     }

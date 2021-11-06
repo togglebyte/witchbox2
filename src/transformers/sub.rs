@@ -20,7 +20,7 @@ impl SubTransformer {
     pub fn transform(&mut self, sub: SubscribeEvent) {
         let updated_existing = self.subs
             .iter_mut()
-            .filter(|(_, s)| s.gifter == sub.display_name && s.gift)
+            .filter(|(_, s)| s.display_name == sub.display_name && s.gift)
             .any(|(inst, existing_sub)| {
                 if let Some(ref recipient) = sub.recipient_display_name {
                     existing_sub.recipients.push(recipient.clone());
@@ -40,10 +40,12 @@ impl SubTransformer {
 
             let sub = Subscription {
                 gift: sub.is_gift,
-                gifter: sub.display_name,
+                display_name: sub.display_name,
                 recipients: sub.recipient_display_name.into_iter().collect(),
                 tier: Tier::from(sub.sub_plan),
                 message: sub.sub_message.message,
+                cumulative_months: sub.cumulative_months,
+                streak: sub.streak_months,
                 sub_type,
             };
             self.subs.push((Instant::now(), sub));

@@ -53,10 +53,13 @@ impl EventDisplay {
             None => return Ok(()),
         };
 
-        self.inner_win.erase();
+        self.inner_win.erase()?;
 
         let mut lines = Lines::new(self.inner_win.size().width as usize);
-        lines.push_str(&todo, true);
+        for line in todo.lines() {
+            lines.push_str(line, true);
+            lines.force_new_line();
+        }
         super::render_lines(lines, &self.inner_win, 0)?;
 
         Ok(())
@@ -90,7 +93,7 @@ impl EventDisplay {
         Ok(())
     }
 
-    pub fn handle(&mut self, msg: &DisplayMessage) {
+    pub fn handle(&mut self, msg: &DisplayMessage) -> Result<()> {
         match msg {
             DisplayMessage::ChannelPoints(points_event) => {
                 let animation = CharAnim::new(
@@ -103,10 +106,12 @@ impl EventDisplay {
             DisplayMessage::Follow(followers, sound) => {
                 let mut s = format!("Thank you for the follow ");
                 if followers.len() > 1 {
-                    write!(&mut s, "\n");
+                    write!(&mut s, "\n")?;
                 }
                 followers.iter().for_each(|f| {
-                    write!(&mut s, "{}\n", f.0);
+                    if let Err(e) = write!(&mut s, "{}\n", f.0) {
+                        log::error!("Failed to write string: {}", e);
+                    }
                 });
                 let anim = (followers.len() > 1).then(|| Animation::VertSlide).unwrap_or(Animation::HorzSlide);
                 let animation = CharAnim::new(&s, self.inner_win.size(), anim);
@@ -117,10 +122,13 @@ impl EventDisplay {
                 self.dirty = true;
             }
             DisplayMessage::Chat(_)
+            | DisplayMessage::Quote(..)
             | DisplayMessage::ChatEvent(_)
             | DisplayMessage::ClearChat
-            | DisplayMessage::Sub(_, _) => return,
+            | DisplayMessage::Sub(_, _) => return Ok(()),
         };
+
+        Ok(())
     }
 
     pub fn resize(&mut self, size: Size) -> Result<()> {
@@ -130,15 +138,7 @@ impl EventDisplay {
 
         self.window.resize(size)?;
         let inner_size = Size::new(size.width - 2, size.height - 2);
-        self.inner_win.resize(inner_size);
-        self.dirty = true;
-        Ok(())
-    }
-
-    pub fn move_win(&mut self, pos: Pos) -> Result<()> {
-        self.window.move_win(pos)?;
-        let inner_pos = Pos::new(pos.x + 1, pos.y + 1);
-        self.inner_win.move_win(inner_pos)?;
+        self.inner_win.resize(inner_size)?;
         self.dirty = true;
         Ok(())
     }
@@ -149,8 +149,8 @@ impl EventDisplay {
         }
 
         self.dirty = false;
-        self.window.erase();
-        self.inner_win.erase();
+        self.window.erase()?;
+        self.inner_win.erase()?;
 
         if !self.wants_update() {
             self.show_todo()?;

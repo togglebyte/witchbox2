@@ -1,13 +1,19 @@
+use rand::prelude::*;
 use neotwitch::ChannelPoints;
+use fortune_countdown::Quotes;
+
 use crate::display::models::{ChannelPointsMessage, DisplayMessage, ChatEvent};
-use crate::audio::default_sound;
+use crate::display::random_color;
+use crate::audio::{default_sound, random_arch};
 
 pub struct ChannelPointsTransformer {
+    quotes: Quotes,
 }
 
 impl ChannelPointsTransformer {
     pub fn new() -> Self {
         Self {
+            quotes: Quotes::new("/home/togglebit/projects/rust/fortune-countdown/datfiles/").expect("Quotes missing"),
         }
     }
 
@@ -18,27 +24,19 @@ impl ChannelPointsTransformer {
                 title: chan_points.reward.title,
                 sound_path: Some(default_sound()),
             })),
-            // "random quote" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
-            //     user: chan_points.user.display_name,
-            //     title: chan_points.reward.title,
-            // })),
-            // "what os are you using" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
-            //     user: chan_points.user.display_name,
-            //     title: chan_points.reward.title,
-            // })),
-            // "Work on: Mixel" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
-            //     user: chan_points.user.display_name,
-            //     title: chan_points.reward.title,
-            // })),
-            // "Work on: Witchbox 2" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
-            //     user: chan_points.user.display_name,
-            //     title: chan_points.reward.title,
-            // })),
-            // "Work on: Tiny Route" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
-            //     user: chan_points.user.display_name,
-            //     title: chan_points.reward.title,
-            // })),
-            "Work on: Terminal Social Network" => Some(DisplayMessage::ChatEvent(ChatEvent("Work on o-slash".into()))),
+            "what os are you using" => Some(DisplayMessage::ChannelPoints(ChannelPointsMessage {
+                user: chan_points.user.display_name,
+                title: chan_points.reward.title,
+                sound_path: Some(random_arch()),
+            })),
+            "random quote" => {
+                let color = random_color();
+                Some(DisplayMessage::Quote(self.quotes.next().quote, color))
+            }
+            "Work on: Mixel" => Some(DisplayMessage::ChatEvent(ChatEvent("Work on Mixel".into()))),
+            "Work on: Witchbox" => Some(DisplayMessage::ChatEvent(ChatEvent("Work on Witchbox".into()))),
+            "Work on: Tiny Route" => Some(DisplayMessage::ChatEvent(ChatEvent("Work on Tiny Route".into()))),
+            "Work on: Terminal Social Network" => Some(DisplayMessage::ChatEvent(ChatEvent("Work on o/".into()))),
 
             _ => { 
                 log::warn!("Unknown channel event: {}", chan_points.reward.title);

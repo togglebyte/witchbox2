@@ -59,7 +59,8 @@ async fn main() {
         match s.as_ref() {
             "hydrate" => testdata::hydrate().await,
             "bits" => testdata::bits().await,
-            // "sub" => testdata::sub().await,
+            "sub" => testdata::sub().await,
+            "substreak" => testdata::sub_streak().await,
             "giftsub" => testdata::gift_sub().await,
             "anongiftsub" => testdata::anon_gift_sub().await,
             "oslash" => testdata::oslash().await,

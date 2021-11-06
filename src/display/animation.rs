@@ -2,12 +2,30 @@ use std::fs::read_to_string;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
 use anathema::{split, Color, Colors, Instruction, Line, Lines, Pos, Size, Window};
+use anyhow::Result;
 use rand::prelude::*;
 use unicode_width::UnicodeWidthStr;
 
+use crate::display::models::Tier;
 use crate::display::random_color;
+
+const ANIMATIONS: &[&str] = &[
+    "animations/prime.txt",
+    "animations/prime2.txt",
+    "animations/bender.txt",
+];
+
+pub fn get_anim_src(tier: Tier) -> &'static str {
+    let mut rng = thread_rng();
+    match tier {
+        Tier::Prime => ANIMATIONS[..2].choose(&mut rng).unwrap(),
+        Tier::One => ANIMATIONS[2..3].choose(&mut rng).unwrap(),
+        Tier::Two => ANIMATIONS[2..3].choose(&mut rng).unwrap(),
+        Tier::Three => ANIMATIONS[2..3].choose(&mut rng).unwrap(),
+        Tier::Unknown => ANIMATIONS[2..3].choose(&mut rng).unwrap(),
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Char {
@@ -31,7 +49,7 @@ enum AnimState {
 pub struct CharAnim {
     chars: Vec<Char>,
     pub is_done: bool,
-    ttl: Duration,
+    pub ttl: Duration,
     state: AnimState,
 }
 
@@ -185,10 +203,26 @@ pub struct FrameAnim {
     frames: Vec<Frame>,
     current_frame: usize,
     screen_width: usize,
-    ttl: Duration,
     state: FrameAnimState,
+    ticks_per_frame: usize,
+    current_tick: usize,
+    repeat: bool,
+    pub ttl: Duration,
     pub is_done: bool,
     pub height: usize,
+}
+
+fn attrib_int(input: Option<&str>, prefix: &str) -> usize {
+    input.and_then(|s| s.strip_prefix(prefix)).map(str::trim).map(str::parse::<usize>).and_then(Result::ok).unwrap_or(0)
+}
+
+fn attrib_bool(input: Option<&str>, prefix: &str) -> bool {
+    input
+        .and_then(|s| s.strip_prefix(prefix))
+        .map(str::trim)
+        .map(str::parse::<bool>)
+        .and_then(Result::ok)
+        .unwrap_or(false)
 }
 
 impl FrameAnim {
@@ -196,8 +230,11 @@ impl FrameAnim {
         let raw = read_to_string(path).unwrap();
         let mut lines = raw.lines();
 
-        let lines_per_frame = lines.next().unwrap().parse::<usize>().unwrap();
-        let frame_width = lines.next().unwrap().parse::<usize>().unwrap();
+        // let lines_per_frame = lines.next().unwrap().strip_prefix("").parse::<usize>().unwrap();
+        let lines_per_frame = attrib_int(lines.next(), "height:");
+        let frame_width = attrib_int(lines.next(), "width:");
+        let ticks = attrib_int(lines.next(), "ticks:");
+        let repeat = attrib_bool(lines.next(), "repeat:");
 
         let frame_padding = if screen_width > frame_width {
             // Pad
@@ -223,6 +260,9 @@ impl FrameAnim {
             is_done: false,
             state: FrameAnimState::NotStarted,
             height: lines_per_frame,
+            ticks_per_frame: ticks,
+            current_tick: ticks,
+            repeat,
         }
     }
 
@@ -260,9 +300,17 @@ impl FrameAnim {
             lines.force_new_line();
         }
 
-        self.current_frame += 1;
+        self.current_tick -= 1;
+        if self.current_tick == 0 {
+            self.current_tick = self.ticks_per_frame;
+            self.current_frame += 1;
+        }
         if self.current_frame == self.frames.len() {
-            self.current_frame = 0;
+            if self.repeat {
+                self.current_frame = 0;
+            } else {
+                self.current_frame = self.frames.len() - 1;
+            }
         }
 
         lines

@@ -1,5 +1,5 @@
 use neotwitch::IrcMessage;
-use anathema::{Colors, Line, Lines, Instruction};
+use anathema::{Colors, Color, Line, Lines, Instruction};
 use crate::display::random_color;
 
 #[derive(Debug, Clone)]
@@ -11,6 +11,7 @@ pub enum DisplayMessage {
     TodoUpdate(String),
     Sub(Subscription, String),
     Follow(Vec<Follow>, String),
+    Quote(String, Color),
 }
 
 #[derive(Debug, Clone)]
@@ -53,11 +54,13 @@ pub struct ChannelPointsMessage {
 #[derive(Debug, Clone)]
 pub struct Subscription {
     pub gift: bool,
-    pub gifter: Option<String>,
+    pub display_name: Option<String>,
     pub recipients: Vec<String>,
     pub tier: Tier,
     pub message: String,
     pub sub_type: SubType,
+    pub cumulative_months: Option<usize>,
+    pub streak: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]

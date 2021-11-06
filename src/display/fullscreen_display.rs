@@ -6,7 +6,7 @@ use anyhow::Result;
 use rand::prelude::*;
 use rodio::OutputStreamHandle;
 
-use super::animation::{CharAnim, FrameAnim, Animation};
+use super::animation::{get_anim_src, Animation, CharAnim, FrameAnim};
 use super::models::{DisplayMessage, Subscription};
 use crate::audio::SoundPlayer;
 
@@ -61,7 +61,7 @@ impl FullscreenDisplay {
     pub fn update(&mut self) -> Result<()> {
         self.window.erase()?;
         self.next_frame()?;
-        self.window.refresh();
+        self.window.refresh()?;
         Ok(())
     }
 
@@ -74,45 +74,71 @@ impl FullscreenDisplay {
         Ok(())
     }
 
-    pub fn handle(&mut self, msg: &DisplayMessage) {
+    pub fn handle(&mut self, msg: &DisplayMessage) -> Result<()> {
         let (sub, sound_path) = match msg {
             DisplayMessage::Sub(sub, sound_path) => (sub, sound_path),
             DisplayMessage::ChannelPoints(_)
+            | DisplayMessage::Quote(..)
             | DisplayMessage::Chat(_)
-            | DisplayMessage::Follow(_, _)
+            | DisplayMessage::Follow(..)
             | DisplayMessage::TodoUpdate(_)
             | DisplayMessage::ChatEvent(_)
-            | DisplayMessage::ClearChat => return,
+            | DisplayMessage::ClearChat => return Ok(()),
         };
 
         let width = self.window.size().width;
-        let animation = FrameAnim::new("animations/bender.txt", width as usize);
+        let anim_src = get_anim_src(sub.tier);
+        let mut animation = FrameAnim::new(anim_src, width as usize);
 
         let height = self.window.size().height;
-        let text_anim_height = height - animation.height as i32; 
-        let message = sub_to_message(&sub, text_anim_height as usize);
-        let char_anim = CharAnim::new(&message, Size::new(width, text_anim_height), Animation::Scatter);
+        let text_anim_height = height - animation.height as i32;
+        let message = sub_to_message(&sub, text_anim_height as usize)?;
+        let mut char_anim = CharAnim::new(&message, Size::new(width, text_anim_height), Animation::Scatter);
+        if animation.ttl > char_anim.ttl {
+            char_anim.ttl = animation.ttl;
+        } else {
+            animation.ttl = char_anim.ttl;
+        }
         self.queue.push_back((message, animation, char_anim, sound_path.clone()));
+
+        Ok(())
     }
 }
 
-fn sub_to_message(sub: &Subscription, max_lines: usize) -> String {
+fn sub_to_message(sub: &Subscription, max_lines: usize) -> Result<String> {
     let mut s = String::new();
 
+    // Gift
     if sub.gift {
-        write!(&mut s, "{} gifted ", sub.gifter.as_deref().unwrap_or("[Anonymous]"));
+        write!(&mut s, "{} gifted ", sub.display_name.as_deref().unwrap_or("[Anonymous]"))?;
         if sub.recipients.len() == 1 {
-            write!(&mut s, "a sub to {}!", sub.recipients.first().unwrap());
+            write!(&mut s, "a sub to {}!", sub.recipients.first().unwrap())?;
         } else {
-            write!(&mut s, "{} subs to \n", sub.recipients.len());
-            sub.recipients.iter().take(max_lines.saturating_sub(5)).for_each(|r| { write!(&mut s, "{}\n", r); });
+            write!(&mut s, "{} subs to \n", sub.recipients.len())?;
+            sub.recipients.iter().take(max_lines.saturating_sub(5)).for_each(|r| {
+                if let Err(e) = write!(&mut s, "{}\n", r) {
+                    log::error!("failed to write to string: {}", e);
+                }
+            });
 
             if sub.recipients.len() > max_lines.saturating_sub(5) {
-                write!(&mut s, "... And many more!!!!");
+                write!(&mut s, "... And many more!!!!")?;
             }
+        }
+    // Not gift
+    } else {
+        write!(&mut s, "{} subscribed", sub.display_name.as_deref().unwrap_or("[Anonymous]"))?;
+        match sub.cumulative_months {
+            Some(months @ 2..) => {
+                write!(&mut s, " for {} months!", months)?;
+            }
+            _ => {}
+        }
 
+        if let Some(streak @ 2..) = sub.streak {
+            write!(&mut s, "\nThey have subscribed for {} months in a row now!", streak)?;
         }
     }
 
-    s
+    Ok(s)
 }

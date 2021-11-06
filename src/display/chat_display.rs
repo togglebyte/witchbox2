@@ -9,8 +9,8 @@ use super::random_color;
 
 const BORDER_1: &str =
     "----------------------------------------------------------------------------------------------------";
-const BORDER_2: &str =
-    "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-";
+// const BORDER_2: &str =
+//     "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-";
 
 
 fn empty_chat() -> String {
@@ -36,7 +36,9 @@ impl ChatDisplay {
 
     pub fn handle(&mut self, msg: &DisplayMessage) {
         match msg {
-            DisplayMessage::Chat(_) | DisplayMessage::ChatEvent(_) => {
+            DisplayMessage::Chat(_) 
+            | DisplayMessage::ChatEvent(_) 
+            | DisplayMessage::Quote(..) => {
                 self.messages.push(msg.clone());
                 self.dirty = true;
             }
@@ -93,7 +95,6 @@ impl ChatDisplay {
                     lines.force_new_line();
                 }
                 DisplayMessage::ChatEvent(ev) => {
-                    lines.reset_color();
                     lines.reset_style();
                     let color = random_color();
 
@@ -102,7 +103,7 @@ impl ChatDisplay {
                     }
 
                     let width = self.window.size().width as usize;
-                    let padding = width / 2 - ev.0.width() / 2;
+                    let padding = (width / 2).saturating_sub(ev.0.width() / 2);
 
                     let border = BORDER_1;
                     lines.push_str(&border[..width.min(border.len())], true);
@@ -112,9 +113,21 @@ impl ChatDisplay {
                     lines.force_new_line();
                     lines.push_str(&border[..width.min(border.len())], true);
                 }
-                DisplayMessage::ClearChat => {
+                DisplayMessage::Quote(quote, color) => {
+                    log::info!("{}", quote);
+                    lines.reset_style();
+
+                    if let Ok(col) = Colors::init_fg(*color) {
+                        lines.color(col);
+                    }
+
+                    lines.style(Attribute::Italic);
+                    lines.push_str("> ", true);
+                    lines.push_str(&quote, true);
+                    lines.force_new_line();
                 }
                 DisplayMessage::Follow(_, _)
+                | DisplayMessage::ClearChat
                 | DisplayMessage::Sub(_, _)
                 | DisplayMessage::TodoUpdate(_)
                 | DisplayMessage::ChannelPoints(_) => {}

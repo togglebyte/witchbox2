@@ -95,7 +95,7 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
                                 }
                                 crate::twitch::Twitch::Sub(sub) => transformers.subs.transform(sub),
                                 crate::twitch::Twitch::Follow(follow) => transformers.follow.transform(follow),
-                                _ => {} //unimplemented!(),
+                                _ => { log::info!("Not implemented:\n{:?}", twitch); }
                             }
                         }
                         _ => {}
