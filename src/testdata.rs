@@ -48,6 +48,11 @@ pub async fn gift_sub() {
     send_twich_event(bytes).await;
 }
 
+// pub async fn sub() {
+//     let bytes = SUB.as_bytes();
+//     send_twich_event(bytes).await;
+// }
+
 pub async fn anon_gift_sub() {
     let bytes = ANON_GIFT_SUB.as_bytes();
     send_twich_event(bytes).await;

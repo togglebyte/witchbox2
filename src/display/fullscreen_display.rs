@@ -1,79 +1,55 @@
 use std::collections::VecDeque;
+use std::fmt::Write;
 
-use rodio::OutputStreamHandle;
-use anathema::{Input, Line, Pos, ScrollBuffer, Sub, Window, Size, Colors};
+use anathema::{Colors, Input, Line, Lines, Pos, ScrollBuffer, Size, Sub, Window};
 use anyhow::Result;
 use rand::prelude::*;
+use rodio::OutputStreamHandle;
 
-use super::animation::{FrameAnim, CharAnim};
-use super::models::DisplayMessage;
-use super::{DisplayContext, DisplayHandler};
-use crate::sound_player::SoundPlayer;
-
-
-fn random_sub() -> String {
-    let sounds = (1..=14)
-        .map(|id| format!("/home/togglebit/projects/stream/sounds/sub{}.mp3", id))
-        .collect::<Vec<String>>();
-
-    let mut rng = thread_rng();
-    sounds.choose(&mut rng).unwrap().to_owned()
-}
+use super::animation::{CharAnim, FrameAnim, Animation};
+use super::models::{DisplayMessage, Subscription};
+use crate::audio::SoundPlayer;
 
 pub struct FullscreenDisplay {
-    queue: VecDeque<(FrameAnim, CharAnim)>,
+    queue: VecDeque<(String, FrameAnim, CharAnim, String)>,
     current: Option<(FrameAnim, CharAnim)>,
     sound_player: Option<SoundPlayer>,
     output_handle: OutputStreamHandle,
+    window: Window<Sub>,
 }
 
 impl FullscreenDisplay {
-    pub fn new(output_handle: OutputStreamHandle) -> Self {
-        Self { queue: VecDeque::with_capacity(100), current: None, sound_player: None, output_handle }
+    pub fn new(window: Window<Sub>, output_handle: OutputStreamHandle) -> Self {
+        Self { queue: VecDeque::with_capacity(100), current: None, sound_player: None, output_handle, window }
     }
 
     pub fn wants_update(&self) -> bool {
         !self.queue.is_empty() || self.current.is_some()
     }
 
-    fn next_frame(&mut self, window: &Window<Sub>, buffer: &mut ScrollBuffer<Line>) -> Result<()> {
+    fn next_frame(&mut self) -> Result<()> {
         match &mut self.current {
             Some((frame, text)) => {
-                let mut lines = frame.update();
-                // let chars = text.update();
-
-                // // Draw the text first.
-                // // TODO: inc all X with 1 because of the border
-                // for c in chars {
-                //     let color_id: i16 = c.color.into();
-                //     let pair = Colors::get_color_pair(color_id as u32);
-                //     window.set_color(pair)?;
-                //     window.add_char_at(c.current_pos, c.c)?;
-                // }
-
-                // let reset = Colors::get_color_pair(0);
-                // window.set_color(reset)?;
+                text.draw(&mut self.window)?;
 
                 // ... Then the frame anim
+                let mut lines = frame.update();
                 // Position the animation at the bottom of the window
-                let y = window.size().height - lines.len() as i32;
-                window.move_cursor(Pos::new(0, y - 1))?;
+                let y = self.window.size().height - lines.len() as i32;
+                self.window.move_cursor(Pos::new(0, y - 1))?;
+                super::render_lines(lines, &self.window, 0)?;
 
-                buffer.clear();
-                for line in lines.drain() {
-                    buffer.push(line);
-                }
-
-                if frame.is_done {
+                if frame.is_done && text.is_done {
                     self.current.take();
                 }
             }
             None => match self.queue.pop_front() {
                 Some(next_anim) => {
-                    self.current = Some(next_anim);
-                    // if let Some(ref mut player) = self.sound_player {
-                    //     player.play(1.0);
-                    // }
+                    let (message, anim, text, sound_path) = next_anim;
+                    self.current = Some((anim, text));
+                    let mut player = SoundPlayer::new(sound_path, self.output_handle.clone());
+                    player.play(1.0);
+                    self.sound_player = Some(player);
                 }
                 None => {}
             },
@@ -81,40 +57,62 @@ impl FullscreenDisplay {
 
         Ok(())
     }
-}
 
-impl DisplayHandler for FullscreenDisplay {
-    fn update(&mut self, context: DisplayContext) -> Result<()> {
-        context.window.erase()?;
-        // context.window.draw_box();
-        self.next_frame(context.window, context.buffer)?;
+    pub fn update(&mut self) -> Result<()> {
+        self.window.erase()?;
+        self.next_frame()?;
+        self.window.refresh();
         Ok(())
     }
 
-    fn input(&mut self, _: DisplayContext, _: Input) -> Result<()> {
+    pub fn resize(&mut self, size: Size) -> Result<()> {
+        // Cancel any ongoing animations
+        // before resizing the window
+        let _ = self.current.take();
+
+        self.window.resize(size)?;
         Ok(())
     }
 
-    fn rebuild(&mut self, context: DisplayContext) -> Result<()> {
-        Ok(())
-    }
-
-    fn handle(&mut self, context: DisplayContext, msg: &DisplayMessage) {
-        let sub = match msg {
-            DisplayMessage::Sub(sub) => sub,
+    pub fn handle(&mut self, msg: &DisplayMessage) {
+        let (sub, sound_path) = match msg {
+            DisplayMessage::Sub(sub, sound_path) => (sub, sound_path),
             DisplayMessage::ChannelPoints(_)
             | DisplayMessage::Chat(_)
+            | DisplayMessage::Follow(_, _)
             | DisplayMessage::TodoUpdate(_)
             | DisplayMessage::ChatEvent(_)
             | DisplayMessage::ClearChat => return,
         };
 
-        let sound = random_sub();
-        self.sound_player = Some(SoundPlayer::new(sound, self.output_handle.clone()));
-        let width = context.window.size().width - 2;
-        let height = 4;
+        let width = self.window.size().width;
         let animation = FrameAnim::new("animations/bender.txt", width as usize);
-        let char_anim = CharAnim::new("Not implemented yet", Size::new(width, height));
-        self.queue.push_back((animation, char_anim));
+
+        let height = self.window.size().height;
+        let text_anim_height = height - animation.height as i32; 
+        let message = sub_to_message(&sub, text_anim_height as usize);
+        let char_anim = CharAnim::new(&message, Size::new(width, text_anim_height), Animation::Scatter);
+        self.queue.push_back((message, animation, char_anim, sound_path.clone()));
     }
+}
+
+fn sub_to_message(sub: &Subscription, max_lines: usize) -> String {
+    let mut s = String::new();
+
+    if sub.gift {
+        write!(&mut s, "{} gifted ", sub.gifter.as_deref().unwrap_or("[Anonymous]"));
+        if sub.recipients.len() == 1 {
+            write!(&mut s, "a sub to {}!", sub.recipients.first().unwrap());
+        } else {
+            write!(&mut s, "{} subs to \n", sub.recipients.len());
+            sub.recipients.iter().take(max_lines.saturating_sub(5)).for_each(|r| { write!(&mut s, "{}\n", r); });
+
+            if sub.recipients.len() > max_lines.saturating_sub(5) {
+                write!(&mut s, "... And many more!!!!");
+            }
+
+        }
+    }
+
+    s
 }

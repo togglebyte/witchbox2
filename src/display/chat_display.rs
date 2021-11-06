@@ -1,3 +1,5 @@
+use std::fs::read_to_string;
+
 use anathema::{Attribute, Colors, Input, Instruction, Lines, Pos, Size, Sub, Window};
 use anyhow::Result;
 use unicode_width::UnicodeWidthStr;
@@ -12,7 +14,7 @@ const BORDER_2: &str =
 
 
 fn empty_chat() -> String {
-    "This is an empty chat\nThere should be things here\nThere isn't".into()
+    read_to_string("default_chat.txt").unwrap_or(String::new())
 }
 
 pub struct ChatDisplay {
@@ -28,10 +30,18 @@ impl ChatDisplay {
         Self { messages: Vec::with_capacity(500), offset: 0, dirty: true, window, default_text: empty_chat() }
     }
 
+    pub fn touch(&mut self) {
+        self.dirty = true;
+    }
+
     pub fn handle(&mut self, msg: &DisplayMessage) {
         match msg {
             DisplayMessage::Chat(_) | DisplayMessage::ChatEvent(_) => {
                 self.messages.push(msg.clone());
+                self.dirty = true;
+            }
+            DisplayMessage::ClearChat => {
+                self.messages.clear();
                 self.dirty = true;
             }
             _ => {}
@@ -103,11 +113,9 @@ impl ChatDisplay {
                     lines.push_str(&border[..width.min(border.len())], true);
                 }
                 DisplayMessage::ClearChat => {
-                    self.messages.clear();
-                    return Ok(());
                 }
                 DisplayMessage::Follow(_, _)
-                | DisplayMessage::Sub(_)
+                | DisplayMessage::Sub(_, _)
                 | DisplayMessage::TodoUpdate(_)
                 | DisplayMessage::ChannelPoints(_) => {}
             };
@@ -120,7 +128,10 @@ impl ChatDisplay {
 
         // Draw a default if lines are empty:
         if lines.is_empty() {
-            lines.push_str(&self.default_text, true);
+            for l in self.default_text.lines() {
+                lines.push_str(l, true);
+                lines.force_new_line();
+            }
         }
 
         self.window.erase()?;

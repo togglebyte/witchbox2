@@ -10,12 +10,12 @@ use rodio::OutputStream;
 mod animation;
 mod chat_display;
 mod event_display;
-// mod fullscreen_display;
+mod fullscreen_display;
 pub mod models;
 
 use chat_display::ChatDisplay;
 use event_display::EventDisplay;
-// use fullscreen_display::FullscreenDisplay;
+use fullscreen_display::FullscreenDisplay;
 
 pub type DisplayEventRx = mpsc::Receiver<models::DisplayMessage>;
 pub type DisplayEventTx = mpsc::Sender<models::DisplayMessage>;
@@ -82,11 +82,11 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
     let (event_size, chat_size) = sizes(window.size());
     let event_win = window.new_window(Pos::new(0, 0), event_size)?;
     let chat_win = window.new_window(Pos::new(0, event_size.height), chat_size)?;
-    let mut chat = ChatDisplay::new(chat_win);
+    let fullscreen_win = window.new_window(Pos::new(0, 0), window.size())?;
 
+    let mut chat = ChatDisplay::new(chat_win);
     let mut event_disp = EventDisplay::new(event_win, sound_output_handle.clone(), None)?;
-    // // let fullscreen_win = window.new_window(Pos::new(0, 0), window.size())?;
-    // // let mut fullscreen = Display::new(fullscreen_win, FullscreenDisplay::new(sound_output_handle));
+    let mut fullscreen = FullscreenDisplay::new(fullscreen_win, sound_output_handle);
 
     loop {
         // ---------------------------------------------------------------------
@@ -95,7 +95,7 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
         while let Ok(event) = events.try_recv() {
             chat.handle(&event);
             event_disp.handle(&event);
-            // fullscreen.handle(&event);
+            fullscreen.handle(&event);
         }
 
         // ---------------------------------------------------------------------
@@ -103,8 +103,6 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
         // ---------------------------------------------------------------------
         if let Some(key) = window.get_input() {
             chat.input(key)?;
-            // event_disp.input(key)?;
-            // fullscreen.input(key)?;
 
             match key {
                 Input::Character('c') => break Ok(()),
@@ -113,16 +111,11 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
                     //     - Resize all windows -
                     // ---------------------------------------------------------
                     let (event_size, chat_size) = sizes(window.size());
-                    // let event_win = window.new_window(Pos::zero(), event_size)?;
-                    // event_win.enable_scroll();
-
-                    // let fullscreen_win = window.new_window(Pos::zero(), window.size())?;
 
                     chat.move_win(Pos::new(0, event_size.height))?;
                     chat.resize(chat_size)?;
-                    // event_disp.move_win(Pos::zero());
-                    event_disp.resize(event_size);
-                    // fullscreen.reset_window(fullscreen_win);
+                    event_disp.resize(event_size)?;
+                    fullscreen.resize(window.size())?;
                 }
                 _ => {}
             }
@@ -131,11 +124,17 @@ pub fn run(events: DisplayEventRx) -> Result<()> {
         // ---------------------------------------------------------------------
         //     - Update and draw -
         // ---------------------------------------------------------------------
-        // while fullscreen.handler.wants_update() && !event_disp.handler.wants_update() {
-        //     fullscreen.update_and_draw()?;
-        //     window.nap(Duration::from_millis(NAP_TIME))?;
-        //     chat.buffer.touch();
-        // }
+        while fullscreen.wants_update() && !event_disp.wants_update() {
+            fullscreen.update()?;
+            window.nap(Duration::from_millis(NAP_TIME))?;
+
+            // If `fullscreen` is done drawing,
+            // mark the chat and event display as dirty so they redraw.
+            if !fullscreen.wants_update() {
+                chat.touch();
+                event_disp.touch();
+            }
+        }
 
         chat.update(&mut colors)?;
         event_disp.update()?;

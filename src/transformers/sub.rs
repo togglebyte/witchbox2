@@ -41,7 +41,7 @@ impl SubTransformer {
             let sub = Subscription {
                 gift: sub.is_gift,
                 gifter: sub.display_name,
-                recipients: Vec::new(),
+                recipients: sub.recipient_display_name.into_iter().collect(),
                 tier: Tier::from(sub.sub_plan),
                 message: sub.sub_message.message,
                 sub_type,

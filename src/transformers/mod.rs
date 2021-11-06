@@ -28,7 +28,7 @@ use tokio::time;
 use crate::display::models::DisplayMessage;
 use crate::display::DisplayEventTx;
 use crate::{Event, EventReceiver};
-use crate::audio::random_follow;
+use crate::audio::{random_sub, random_follow};
 
 mod channel_events;
 mod chat;
@@ -58,7 +58,7 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
             () = time::sleep(Duration::from_secs(1)) => {
                 // Drain subs
                 for sub in transformers.subs.outstanding() {
-                    if let Err(e) = display_tx.send(DisplayMessage::Sub(sub)) {
+                    if let Err(e) = display_tx.send(DisplayMessage::Sub(sub, random_sub())) {
                         log::error!("Failed to send sub to the display: {}", e);
                     }
                 }
@@ -79,7 +79,11 @@ pub async fn run(mut event_rx: EventReceiver, display_tx: DisplayEventTx) {
                                 }
                             }
                         }
-                        Event::ClearChat => drop(display_tx.send(DisplayMessage::ClearChat)),
+                        Event::ClearChat => {
+                            if let Err(e) = display_tx.send(DisplayMessage::ClearChat) {
+                                log::error!("Failed to send clear chat message to the display: {}", e);
+                            }
+                        }
                         Event::Twitch(twitch) => {
                             match twitch {
                                 crate::twitch::Twitch::ChannelEvent(channel_event) => {

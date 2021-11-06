@@ -2,12 +2,12 @@ use std::fs::read_to_string;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use anyhow::Result;
+use anathema::{split, Color, Colors, Instruction, Line, Lines, Pos, Size, Window};
 use rand::prelude::*;
-use anathema::{split, Color, Instruction, Lines, Line, Pos, Size};
 use unicode_width::UnicodeWidthStr;
 
 use crate::display::random_color;
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct Char {
@@ -151,6 +151,25 @@ impl CharAnim {
 
         self.chars.clone()
     }
+
+    pub fn draw<T>(&mut self, window: &mut Window<T>) -> Result<()> {
+        let chars = self.update();
+
+        for c in chars {
+            if !window.contains(c.current_pos) {
+                continue;
+            }
+            let color_id: i16 = c.color.into();
+            let pair = Colors::get_color_pair(color_id as u32);
+            window.set_color(pair)?;
+            window.add_char_at(c.current_pos, c.c)?;
+        }
+
+        let reset = Colors::get_color_pair(0);
+        window.set_color(reset)?;
+
+        Ok(())
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -169,6 +188,7 @@ pub struct FrameAnim {
     ttl: Duration,
     state: FrameAnimState,
     pub is_done: bool,
+    pub height: usize,
 }
 
 impl FrameAnim {
@@ -202,6 +222,7 @@ impl FrameAnim {
             ttl: Duration::from_secs(4),
             is_done: false,
             state: FrameAnimState::NotStarted,
+            height: lines_per_frame,
         }
     }
 
@@ -216,6 +237,7 @@ impl FrameAnim {
         };
 
         let mut lines = Lines::new(self.screen_width);
+        lines.reset_color();
 
         if started.elapsed() > self.ttl {
             self.is_done = true;
@@ -224,7 +246,7 @@ impl FrameAnim {
 
         for frame_line in &self.frames[self.current_frame].lines {
             lines.pad(1); // pad one to avoid drawing over the border
-            // let mut line = Line::new();
+                          // let mut line = Line::new();
 
             // line.pad(1); // pad one to avoid drawing over the border
             if self.frame_padding > 0 {
@@ -235,6 +257,7 @@ impl FrameAnim {
                 true => lines.push_str(&frame_line[..self.screen_width], true),
                 false => lines.push_str(frame_line, true),
             }
+            lines.force_new_line();
         }
 
         self.current_frame += 1;

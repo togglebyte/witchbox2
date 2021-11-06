@@ -22,3 +22,13 @@ pub fn random_follow() -> String {
     let mut rng = thread_rng();
     sounds.choose(&mut rng).unwrap().to_owned()
 }
+
+pub fn random_sub() -> String {
+    let sounds = (1..=14)
+        .map(|id| format!("/home/togglebit/projects/stream/sounds/sub{}.mp3", id))
+        .collect::<Vec<String>>();
+
+    let mut rng = thread_rng();
+    sounds.choose(&mut rng).unwrap().to_owned()
+}
+

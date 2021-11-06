@@ -39,7 +39,11 @@ impl EventDisplay {
         Ok(inst)
     }
 
-    fn wants_update(&self) -> bool {
+    pub fn touch(&mut self) {
+        self.dirty = true;
+    }
+
+    pub fn wants_update(&self) -> bool {
         !self.queue.is_empty() || self.current.is_some()
     }
 
@@ -61,34 +65,22 @@ impl EventDisplay {
     fn next_frame(&mut self) -> Result<()> {
         // mark it as dirty so we re-draw the todo if there is one
         self.dirty = true;
+
         match self.current {
             Some(ref mut current) => {
                 self.inner_win.erase()?;
-                let chars = current.update();
-
-                for c in chars {
-                    if !self.inner_win.contains(c.current_pos) {
-                        continue;
-                    }
-                    let color_id: i16 = c.color.into();
-                    let pair = Colors::get_color_pair(color_id as u32);
-                    self.inner_win.set_color(pair)?;
-                    self.inner_win.add_char_at(c.current_pos, c.c)?;
-                }
-
-                let reset = Colors::get_color_pair(0);
-                self.inner_win.set_color(reset)?;
+                current.draw(&mut self.inner_win)?;
 
                 if current.is_done {
                     self.current.take();
                 }
             }
             None => {
-                if let Some((next_anim, audio)) = self.queue.pop_front() {
+                if let Some((next_anim, sound_path)) = self.queue.pop_front() {
                     self.current = Some(next_anim);
-                    if let Some(sound) = audio {
-                        let mut player = SoundPlayer::new(sound, self.output_handle.clone());
-                        // player.play(1.0);
+                    if let Some(path) = sound_path {
+                        let mut player = SoundPlayer::new(path, self.output_handle.clone());
+                        player.play(1.0);
                         self.sound_player = Some(player);
                     }
                 }
@@ -127,7 +119,7 @@ impl EventDisplay {
             DisplayMessage::Chat(_)
             | DisplayMessage::ChatEvent(_)
             | DisplayMessage::ClearChat
-            | DisplayMessage::Sub(_) => return,
+            | DisplayMessage::Sub(_, _) => return,
         };
     }
 

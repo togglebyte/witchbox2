@@ -9,7 +9,7 @@ pub enum DisplayMessage {
     ClearChat,
     ChannelPoints(ChannelPointsMessage),
     TodoUpdate(String),
-    Sub(Subscription),
+    Sub(Subscription, String),
     Follow(Vec<Follow>, String),
 }
 
