@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 use std::fmt::Write;
 
-use anathema::{Colors, Input, Line, Lines, Pos, ScrollBuffer, Size, Sub, Window};
+use anathema::{Pos, Size, Sub, Window};
 use anyhow::Result;
-use rand::prelude::*;
 use rodio::OutputStreamHandle;
 
 use super::animation::{get_anim_src, Animation, CharAnim, FrameAnim};
@@ -33,7 +32,7 @@ impl FullscreenDisplay {
                 text.draw(&mut self.window)?;
 
                 // ... Then the frame anim
-                let mut lines = frame.update();
+                let lines = frame.update();
                 // Position the animation at the bottom of the window
                 let y = self.window.size().height - lines.len() as i32;
                 self.window.move_cursor(Pos::new(0, y - 1))?;

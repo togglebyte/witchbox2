@@ -2,7 +2,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use unicode_width::UnicodeWidthStr;
-use anathema::{Color, Colors, Cursor, Input, Instruction, Line, Lines, Pos, ScrollBuffer, Size, Sub, Window};
+use anathema::{Color, Colors, Cursor, Input, Instruction, Lines, Pos, Size, Sub, Window};
 use anyhow::Result;
 use rand::prelude::*;
 use rodio::OutputStream;
@@ -148,11 +148,11 @@ fn render_lines(lines: Lines<'_>, window: &Window<Sub>, offset: usize) -> Result
     let skip = (lines.len().max(height) - height).saturating_sub(offset).saturating_sub(1);
 
     for (i, line) in lines.iter().skip(skip).take(height).enumerate() {
-        let mut ends_with_newline = false;
+        let ends_with_newline = false;
 
         for inst in line.instructions() {
             match inst {
-                Instruction::String(mut s) => {
+                Instruction::String(s) => {
                     let cur = window.get_cursor();
                     let size = window.size();
 

@@ -1,5 +1,3 @@
-use std::thread;
-
 use neotwitch::{ChannelPoints, FollowEvent, Irc, IrcMessage, SubscribeEvent};
 
 mod audio;

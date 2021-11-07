@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::fmt::Write;
 
-use anathema::{Color, Colors, Input, Line, Lines, Pos, ScrollBuffer, Size, Sub, Window};
+use anathema::{Color, Colors, Lines, Pos, Size, Sub, Window};
 use anyhow::Result;
 use rodio::OutputStreamHandle;
 

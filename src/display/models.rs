@@ -1,6 +1,5 @@
 use neotwitch::IrcMessage;
-use anathema::{Colors, Color, Line, Lines, Instruction};
-use crate::display::random_color;
+use anathema::Color;
 
 #[derive(Debug, Clone)]
 pub enum DisplayMessage {

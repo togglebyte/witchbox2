@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use anathema::{split, Color, Colors, Instruction, Line, Lines, Pos, Size, Window};
+use anathema::{split, Color, Colors, Lines, Pos, Size, Window};
 use anyhow::Result;
 use rand::prelude::*;
 use unicode_width::UnicodeWidthStr;
@@ -65,7 +65,6 @@ fn animation_chars(lines: Vec<&str>, size: Size, animation: Animation) -> Vec<Ch
     let longest_line = lines.iter().map(|l| l.width()).max().unwrap_or(1) as i32;
     let dest_x = size.width / 2 - longest_line / 2;
 
-    let line_count = lines.len() as i32;
     let color = random_color();
 
     for (y, line) in lines.into_iter().enumerate() {
@@ -97,7 +96,7 @@ impl CharAnim {
     pub fn new(words: &str, size: Size, animation: Animation) -> Self {
         let lines = split(words, size.width as usize, 0, true).collect::<Vec<_>>();
 
-        let mut chars = animation_chars(lines, size, animation);
+        let chars = animation_chars(lines, size, animation);
 
         let wpm = words.split_whitespace().count() as f32 * 0.25 + 3.0;
 

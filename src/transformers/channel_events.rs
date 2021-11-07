@@ -1,4 +1,3 @@
-use rand::prelude::*;
 use neotwitch::ChannelPoints;
 use fortune_countdown::Quotes;
 

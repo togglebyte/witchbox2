@@ -1,6 +1,5 @@
-use std::fs::{read_to_string, metadata, File};
+use std::fs::{read_to_string, metadata};
 use std::path::Path;
-use std::sync::mpsc::channel;
 use std::time::{Duration, SystemTime};
 
 use anyhow::Result;

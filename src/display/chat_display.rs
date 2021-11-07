@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
 
-use anathema::{Attribute, Colors, Input, Instruction, Lines, Pos, Size, Sub, Window};
+use anathema::{Attribute, Colors, Input, Lines, Pos, Size, Sub, Window};
 use anyhow::Result;
 use unicode_width::UnicodeWidthStr;
 
@@ -12,6 +12,8 @@ const BORDER_1: &str =
 // const BORDER_2: &str =
 //     "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-";
 
+const BORDER_3: &str =
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
 
 fn empty_chat() -> String {
     read_to_string("default_chat.txt").unwrap_or(String::new())
@@ -69,6 +71,7 @@ impl ChatDisplay {
 
                     lines.push_str(&msg.timestamp, true);
                     lines.pad(1);
+                    lines.reset_color();
 
                     if let Some(ref col) = msg.color {
                         let res = colors.from_hex(col).and_then(Colors::init_fg);
@@ -114,7 +117,6 @@ impl ChatDisplay {
                     lines.push_str(&border[..width.min(border.len())], true);
                 }
                 DisplayMessage::Quote(quote, color) => {
-                    log::info!("{}", quote);
                     lines.reset_style();
 
                     if let Ok(col) = Colors::init_fg(*color) {
@@ -136,7 +138,7 @@ impl ChatDisplay {
 
         // Fix offset
         let height = self.window.size().height as usize;
-        let max = (lines.len().max(height) - height);
+        let max = lines.len().max(height) - height;
         self.offset = self.offset.min(max);
 
         // Draw a default if lines are empty:
@@ -145,6 +147,9 @@ impl ChatDisplay {
                 lines.push_str(l, true);
                 lines.force_new_line();
             }
+            let floor_width = (self.window.size().width as usize).min(BORDER_3.len());
+            lines.push_str(&BORDER_3[..floor_width], true);
+            lines.force_new_line();
         }
 
         self.window.erase()?;
